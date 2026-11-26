@@ -59,8 +59,8 @@
   </header>
 
   <!-- 主要入口卡片區 -->
-  <main class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-6">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7">
 
       <!-- 卡片 1：快樂學注音 -->
       <a href="./zhuyin/"
@@ -102,6 +102,49 @@
         <div class="flex items-center justify-between text-orange-600 font-black text-base sm:text-lg">
           <span>進入注音小教室</span>
           <span class="w-9 h-9 rounded-2xl bg-orange-100 group-hover:bg-orange-500 group-hover:text-white flex items-center justify-center transition-colors">→</span>
+        </div>
+      </a>
+
+      <!-- 卡片 2：快樂學英文 ABC -->
+      <a href="./english/"
+        class="card-3d group block rounded-3xl bg-white border-4 border-sky-200 hover:border-sky-400 shadow-[0_8px_0_0_#BAE6FD] hover:shadow-[0_12px_0_0_#7DD3FC] p-6 sm:p-8 focus:outline-none focus:ring-4 focus:ring-sky-300">
+        <div class="flex items-start justify-between gap-4 mb-5">
+          <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center text-3xl sm:text-4xl shadow-md border-4 border-white shrink-0 group-hover:rotate-3 transition-transform">
+            🔤
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-black bg-indigo-100 text-indigo-700 border border-indigo-200">
+            幼兒園・ABC 啟蒙
+          </span>
+        </div>
+
+        <h2 class="text-2xl sm:text-3xl font-black text-sky-950 mb-2 group-hover:text-indigo-600 transition-colors">
+          快樂學英文・ABC 小教室
+        </h2>
+        <p class="text-sm sm:text-base text-stone-600 font-medium leading-relaxed mb-5">
+          A～Z 大小寫四線三格描線、超過 140 組生活英語單字與發音，還有 5 款無限續關 ABC 互動小遊戲！
+        </p>
+
+        <!-- 標籤 -->
+        <div class="flex flex-wrap gap-2 mb-5">
+          <span class="px-2.5 py-1 rounded-xl bg-sky-50 text-sky-800 border border-sky-200 text-xs font-bold">四線三格寫字</span>
+          <span class="px-2.5 py-1 rounded-xl bg-sky-50 text-sky-800 border border-sky-200 text-xs font-bold">英語發音＋單字</span>
+          <span class="px-2.5 py-1 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold">🎮 5款 ABC 遊戲</span>
+        </div>
+
+        <!-- 進度條（讀取 english_practice_progress_v1） -->
+        <div class="bg-sky-50/90 rounded-2xl p-3.5 border border-sky-200/80 mb-5">
+          <div class="flex justify-between items-center text-xs sm:text-sm font-bold text-sky-900 mb-1.5">
+            <span>⭐ 字母收集進度</span>
+            <span id="englishProgressText">0 / 26</span>
+          </div>
+          <div class="w-full h-2.5 bg-white rounded-full overflow-hidden border border-sky-200/70">
+            <div id="englishProgressBar" class="h-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between text-indigo-600 font-black text-base sm:text-lg">
+          <span>進入英文小教室</span>
+          <span class="w-9 h-9 rounded-2xl bg-sky-100 group-hover:bg-indigo-500 group-hover:text-white flex items-center justify-center transition-colors">→</span>
         </div>
       </a>
 
@@ -176,7 +219,25 @@
         console.warn('無法讀取注音進度：', err);
       }
 
-      // 2. 讀取國小生字練習進度 (hanzi_practice_progress_v1)
+      // 2. 讀取英文 ABC 練習進度 (english_practice_progress_v1)
+      try {
+        const rawEng = localStorage.getItem('english_practice_progress_v1');
+        if (rawEng) {
+          const arr = JSON.parse(rawEng);
+          if (Array.isArray(arr)) {
+            const count = Math.min(arr.length, 26);
+            const pct = Math.round((count / 26) * 100);
+            const textEl = document.getElementById('englishProgressText');
+            const barEl = document.getElementById('englishProgressBar');
+            if (textEl) textEl.textContent = `${count} / 26`;
+            if (barEl) barEl.style.width = `${pct}%`;
+          }
+        }
+      } catch (err) {
+        console.warn('無法讀取英文進度：', err);
+      }
+
+      // 3. 讀取國小生字練習進度 (hanzi_practice_progress_v1)
       try {
         const rawHanzi = localStorage.getItem('hanzi_practice_progress_v1');
         if (rawHanzi) {
