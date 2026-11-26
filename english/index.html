@@ -385,7 +385,7 @@
     </div>
   </div>
 
-  <script src="./vocab-db.js"></script>
+  <script src="./vocab-db.js?v=2"></script>
   <script>
     const STORAGE_KEY = 'english_practice_progress_v1';
 
@@ -521,12 +521,14 @@
     const phonicsAudioCache = new Map();
     let currentPhonicsAudio = null;
 
-    function playPhonicsAudio(letter, iconEl = null) {
+    function playPhonicsAudio(letter, iconEl = null, onEnded = null) {
       const url = window.EnglishDB && window.EnglishDB.getPhonicsUrl(letter);
       if (url) {
         try {
           if ('speechSynthesis' in window) window.speechSynthesis.cancel();
           if (currentPhonicsAudio) {
+            currentPhonicsAudio.onended = null;
+            currentPhonicsAudio.onerror = null;
             currentPhonicsAudio.pause();
             currentPhonicsAudio.currentTime = 0;
           }
@@ -539,12 +541,16 @@
           }
           currentPhonicsAudio = audio;
           audio.currentTime = 0;
-          if (iconEl) {
-            iconEl.classList.add('speaking-pulse');
-            const done = () => iconEl.classList.remove('speaking-pulse');
-            audio.onended = done;
-            audio.onerror = done;
-          }
+          if (iconEl) iconEl.classList.add('speaking-pulse');
+          audio.onended = () => {
+            if (iconEl) iconEl.classList.remove('speaking-pulse');
+            if (typeof onEnded === 'function') onEnded();
+          };
+          audio.onerror = () => {
+            if (iconEl) iconEl.classList.remove('speaking-pulse');
+            speakEnglish(letter, iconEl, 0.78);
+            if (typeof onEnded === 'function') setTimeout(onEnded, 500);
+          };
           const p = audio.play();
           if (p && typeof p.catch === 'function') {
             p.catch(() => {
@@ -556,6 +562,7 @@
         } catch (e) {}
       }
       speakEnglish(letter, iconEl, 0.78);
+      if (typeof onEnded === 'function') setTimeout(onEnded, 500);
     }
 
     function speakEnglish(text, iconEl = null, rate = 0.82) {
@@ -1175,6 +1182,6 @@
       }
     });
   </script>
-  <script src="./games.js"></script>
+  <script src="./games.js?v=2"></script>
 </body>
 </html>

@@ -394,7 +394,9 @@
         </div>
 
         <div id="connectHintBanner" class="mb-3 px-4 py-2 rounded-2xl bg-sky-50 border border-sky-200 text-sky-900 text-xs sm:text-sm font-bold text-center">
-          ✨ 把左邊的英文字母連到右邊對應的單字圖卡！點卡片就能聽英語發音喔！
+          ${gState.soundMode === 'phonics'
+            ? '🎵 目前為「自然發音」模式：點左邊字母聽真人自然發音，連到右邊單字圖卡！'
+            : '🔊 目前為「唸字母」模式：點左邊字母聽英文名稱，連到右邊單字圖卡！'}
         </div>
 
         <div id="connectBoardWrap" class="relative grid grid-cols-2 gap-10 sm:gap-20 md:gap-28 py-2 max-w-3xl mx-auto">
@@ -405,7 +407,12 @@
               <button data-side="left" data-key="${item.letter}" type="button"
                 class="connect-card w-full py-3.5 sm:py-4 px-4 rounded-3xl bg-rose-50 hover:bg-rose-100 border-4 border-rose-200 shadow-sm flex items-center justify-between transition-all">
                 <span class="w-7 h-7 rounded-full bg-white text-rose-400 text-xs font-black flex items-center justify-center border border-rose-200">${idx + 1}</span>
-                <span class="font-abc text-4xl sm:text-5xl font-bold text-rose-900 leading-none">${formatLetter(item)}</span>
+                <div class="flex items-baseline gap-2">
+                  <span class="font-abc text-4xl sm:text-5xl font-bold text-rose-900 leading-none">${formatLetter(item)}</span>
+                  ${gState.soundMode === 'phonics'
+                    ? `<span class="text-xs font-bold px-1.5 py-0.5 rounded-lg bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-200">${item.phonics}</span>`
+                    : ''}
+                </div>
                 <span data-anchor="left-${item.letter}" class="w-5 h-5 rounded-full bg-rose-400 border-4 border-white shadow"></span>
               </button>
             `).join('')}
@@ -484,7 +491,11 @@
           totalMatched += 1;
           selectedLeft = null;
           app().playStrokeDing(matchedMap.size - 1);
-          app().speakEnglish(`${leftItem.letter}, ${leftItem.word}`);
+          if (gState.soundMode === 'phonics' && app().playPhonicsAudio) {
+            app().playPhonicsAudio(leftItem.letter, null, () => app().speakEnglish(leftItem.word, null, 0.85));
+          } else {
+            app().speakEnglish(`${leftItem.letter}, ${leftItem.word}`);
+          }
           progressEl.textContent = `本關 ${matchedMap.size} / ${chosen.length}`;
           totalEl.textContent = `⭐ 累計 ${totalMatched} 組`;
           hintEl.textContent = `🎉 Great! 「${formatLetter(leftItem)}」就是「${leftItem.emoji} ${leftItem.word}（${leftItem.zh}）」！`;
