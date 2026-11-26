@@ -290,14 +290,18 @@
               </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-2.5 mt-3.5">
+            <div class="grid grid-cols-3 gap-2 mt-3.5">
               <button id="speakLetterBtn" type="button"
-                class="btn-3d py-3 px-3 rounded-2xl bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white border-b-4 border-blue-700 font-black text-base shadow-md flex items-center justify-center gap-2">
-                <span id="speakLetterIcon" class="text-xl">🔊</span><span>唸字母</span>
+                class="btn-3d py-2.5 px-2 rounded-2xl bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white border-b-4 border-blue-700 font-black text-xs sm:text-sm shadow-md flex flex-col sm:flex-row items-center justify-center gap-1">
+                <span id="speakLetterIcon" class="text-lg">🔊</span><span>唸字母</span>
+              </button>
+              <button id="speakPhonicsBtn" type="button"
+                class="btn-3d py-2.5 px-2 rounded-2xl bg-gradient-to-r from-fuchsia-400 to-purple-500 hover:from-fuchsia-500 hover:to-purple-600 text-white border-b-4 border-purple-700 font-black text-xs sm:text-sm shadow-md flex flex-col sm:flex-row items-center justify-center gap-1">
+                <span id="speakPhonicsIcon" class="text-lg">🎵</span><span>自然發音</span>
               </button>
               <button id="speakWordBtn" type="button"
-                class="btn-3d py-3 px-3 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white border-b-4 border-orange-600 font-black text-base shadow-md flex items-center justify-center gap-2">
-                <span id="speakWordIcon" class="text-xl">💬</span><span>唸單字</span>
+                class="btn-3d py-2.5 px-2 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white border-b-4 border-orange-600 font-black text-xs sm:text-sm shadow-md flex flex-col sm:flex-row items-center justify-center gap-1">
+                <span id="speakWordIcon" class="text-lg">💬</span><span>唸單字</span>
               </button>
             </div>
           </div>
@@ -349,6 +353,10 @@
 
     <!-- ========== 分頁 2：ABC 遊樂園（由 games.js 動態渲染） ========== -->
     <div id="gamesSection" class="hidden space-y-5"></div>
+
+    <footer class="pt-2 pb-4 text-center text-[11px] sm:text-xs text-sky-900/60 font-medium">
+      🎙️ 自然發音（Phonics）真人音檔來源：free-phonics-letter-sounds（CC0-1.0 公眾領域授權）。
+    </footer>
   </main>
 
   <!-- 完成獎勵彈窗 -->
@@ -509,10 +517,54 @@
       } catch (e) {}
     }
 
-    /** 標準美式英語語音朗讀 (en-US) */
+    /** 自然發音 (Phonics) 真人 MP3 音檔播放器 + 標準美式英語朗讀 (en-US) */
+    const phonicsAudioCache = new Map();
+    let currentPhonicsAudio = null;
+
+    function playPhonicsAudio(letter, iconEl = null) {
+      const url = window.EnglishDB && window.EnglishDB.getPhonicsUrl(letter);
+      if (url) {
+        try {
+          if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+          if (currentPhonicsAudio) {
+            currentPhonicsAudio.pause();
+            currentPhonicsAudio.currentTime = 0;
+          }
+          const key = String(letter).toUpperCase();
+          let audio = phonicsAudioCache.get(key);
+          if (!audio) {
+            audio = new Audio(url);
+            audio.preload = 'auto';
+            phonicsAudioCache.set(key, audio);
+          }
+          currentPhonicsAudio = audio;
+          audio.currentTime = 0;
+          if (iconEl) {
+            iconEl.classList.add('speaking-pulse');
+            const done = () => iconEl.classList.remove('speaking-pulse');
+            audio.onended = done;
+            audio.onerror = done;
+          }
+          const p = audio.play();
+          if (p && typeof p.catch === 'function') {
+            p.catch(() => {
+              if (iconEl) iconEl.classList.remove('speaking-pulse');
+              speakEnglish(letter, iconEl, 0.78);
+            });
+          }
+          return;
+        } catch (e) {}
+      }
+      speakEnglish(letter, iconEl, 0.78);
+    }
+
     function speakEnglish(text, iconEl = null, rate = 0.82) {
       if (!('speechSynthesis' in window)) return;
       try {
+        if (currentPhonicsAudio) {
+          currentPhonicsAudio.pause();
+          currentPhonicsAudio.currentTime = 0;
+        }
         window.speechSynthesis.cancel();
         const utt = new SpeechSynthesisUtterance(text);
         utt.lang = 'en-US';
@@ -985,6 +1037,11 @@
       speakEnglish(item.letter, document.getElementById('speakLetterIcon'), 0.78);
     });
 
+    document.getElementById('speakPhonicsBtn').addEventListener('click', () => {
+      const item = window.EnglishDB.ENGLISH_LETTERS[state.currentIndex];
+      playPhonicsAudio(item.letter, document.getElementById('speakPhonicsIcon'));
+    });
+
     document.getElementById('speakWordBtn').addEventListener('click', () => {
       const item = window.EnglishDB.ENGLISH_LETTERS[state.currentIndex];
       const words = window.EnglishDB.getWords(item.letter);
@@ -1092,6 +1149,7 @@
 
     window.EnglishApp = {
       state,
+      playPhonicsAudio,
       speakEnglish,
       playStrokeDing,
       playRewardSound,

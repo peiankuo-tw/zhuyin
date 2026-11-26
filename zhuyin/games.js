@@ -742,6 +742,7 @@
     const balloons = [];
     const particles = [];
     const popTexts = [];
+    const tapRipples = [];
     const clouds = [
       { x: 0.15, y: 0.14, s: 1.0, v: 0.008 },
       { x: 0.58, y: 0.22, s: 0.85, v: 0.006 },
@@ -779,7 +780,7 @@
       </div>
 
       <div id="balloonFeedback" class="mb-2.5 px-4 py-1.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm font-bold text-center">
-        🎯 找找看寫著「${targetItem.char}（${targetItem.emoji} ${targetItem.word}）」的氣球，點一下戳破它！
+        🎯 氣球在畫面上任何高度都可以點破！找寫著「${targetItem.char}（${targetItem.emoji} ${targetItem.word}）」的氣球！
       </div>
 
       <div class="relative w-full h-[380px] sm:h-[430px] rounded-3xl overflow-hidden border-4 border-sky-200 shadow-inner bg-sky-100">
@@ -863,7 +864,7 @@
         item,
         x,
         baseX: x,
-        y: startY !== null ? startY : ch + r + 10 + Math.random() * 50,
+        y: startY !== null ? startY : ch + r * 0.45 + Math.random() * 25,
         r,
         vy: baseSpeed + Math.random() * 20,
         swayAmp: 10 + Math.random() * 14,
@@ -1046,6 +1047,21 @@
         ctx.restore();
       }
 
+      for (let i = tapRipples.length - 1; i >= 0; i--) {
+        const rp = tapRipples[i];
+        rp.r += 110 * dt;
+        rp.life -= dt * 2.8;
+        if (rp.life <= 0) { tapRipples.splice(i, 1); continue; }
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, rp.life * 0.75);
+        ctx.strokeStyle = rp.hit ? '#F59E0B' : '#FFFFFF';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
       animId = requestAnimationFrame(tick);
     }
 
@@ -1055,12 +1071,14 @@
       const rect = canvas.getBoundingClientRect();
       const px = e.clientX - rect.left;
       const py = e.clientY - rect.top;
+      let hitAny = false;
 
       for (let i = balloons.length - 1; i >= 0; i--) {
         const b = balloons[i];
-        const dx = (px - b.x) / (b.r * 1.18);
-        const dy = (py - b.y) / (b.r * 1.28);
+        const dx = (px - b.x) / (b.r * 1.38);
+        const dy = (py - b.y) / (b.r * 1.42);
         if (dx * dx + dy * dy <= 1) {
+          hitAny = true;
           if (b.item.char === targetItem.char) {
             balloons.splice(i, 1);
             stageScore += 1;
@@ -1108,6 +1126,7 @@
           break;
         }
       }
+      tapRipples.push({ x: px, y: py, r: 8, life: 1, hit: hitAny });
     }
 
     resize();

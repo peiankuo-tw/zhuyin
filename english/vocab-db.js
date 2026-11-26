@@ -282,6 +282,11 @@
     return ENGLISH_VOCAB_DB[letter] || [];
   }
 
+  function getPhonicsUrl(letter) {
+    if (!letter) return null;
+    return `./audio/phonics/${String(letter).toLowerCase()}.mp3`;
+  }
+
   function getTotalWordCount() {
     return Object.values(ENGLISH_VOCAB_DB).reduce((sum, list) => sum + list.length, 0);
   }
@@ -311,6 +316,7 @@
     ENGLISH_LETTERS,
     ENGLISH_VOCAB_DB,
     getWords,
+    getPhonicsUrl,
     getTotalWordCount,
     getEntriesForLetters,
     createSmartDeck,

@@ -35,9 +35,10 @@
   const gState = {
     container: null,
     activeGame: 'connect',
-    scope: 'all',      // 'all' | 'vowel' | 'am' | 'nz' | 'unlearned'
-    caseMode: 'upper', // 'upper' | 'lower' | 'both'
-    difficulty: 'easy',// 'easy' | 'normal'
+    scope: 'all',       // 'all' | 'vowel' | 'am' | 'nz' | 'unlearned'
+    caseMode: 'upper',  // 'upper' | 'lower' | 'both'
+    soundMode: 'phonics', // 'phonics' (自然發音真人音檔) | 'letter' (唸字母名)
+    difficulty: 'easy', // 'easy' | 'normal'
     stats: {
       totalWins: 0,
       winsByGame: { connect: 0, balloon: 0, mole: 0, memory: 0, listen: 0 },
@@ -48,6 +49,14 @@
 
   function app() { return window.EnglishApp; }
   function db() { return window.EnglishDB; }
+
+  function playLetterPrompt(letter, iconEl = null) {
+    if (gState.soundMode === 'phonics' && app().playPhonicsAudio) {
+      app().playPhonicsAudio(letter, iconEl);
+    } else {
+      app().speakEnglish(letter, iconEl, 0.78);
+    }
+  }
 
   function formatLetter(item) {
     if (gState.caseMode === 'lower') return item.lower;
@@ -190,7 +199,7 @@
               <div class="flex flex-wrap items-center gap-2">
                 <h2 class="text-lg sm:text-xl font-black text-indigo-950 leading-tight">ABC 遊樂園・無限續關</h2>
                 <span class="px-2 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-700 border border-emerald-200">📚 ${totalWords} 組生活單字</span>
-                <span class="px-2 py-0.5 rounded-full text-[11px] font-black bg-sky-100 text-sky-700 border border-sky-200">🎙️ 美式英語發音</span>
+                <span class="px-2 py-0.5 rounded-full text-[11px] font-black bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-200">🎵 真人自然發音</span>
               </div>
               <p class="text-xs text-indigo-700/80 font-medium mt-0.5">選一款喜歡的遊戲就能一關接一關持續玩很久，每次都會抽出不同單字與圖案！</p>
             </div>
@@ -230,6 +239,10 @@
 
           <div class="flex flex-wrap items-center gap-2">
             <div class="inline-flex rounded-xl bg-white border border-indigo-200 p-0.5">
+              <button data-gsound="phonics" type="button" class="gsound-btn px-2.5 py-1 rounded-lg text-xs font-bold transition-all">🎵 自然發音</button>
+              <button data-gsound="letter" type="button" class="gsound-btn px-2.5 py-1 rounded-lg text-xs font-bold transition-all">🔊 唸字母</button>
+            </div>
+            <div class="inline-flex rounded-xl bg-white border border-indigo-200 p-0.5">
               <button data-gcase="upper" type="button" class="gcase-btn px-2 py-1 rounded-lg text-xs font-bold transition-all">大寫 A</button>
               <button data-gcase="lower" type="button" class="gcase-btn px-2 py-1 rounded-lg text-xs font-bold transition-all">小寫 a</button>
               <button data-gcase="both" type="button" class="gcase-btn px-2 py-1 rounded-lg text-xs font-bold transition-all">Aa</button>
@@ -261,6 +274,9 @@
     });
     root.querySelectorAll('.scope-btn').forEach((btn) => {
       btn.addEventListener('click', () => { app().playSoftPop(); gState.scope = btn.dataset.scope; syncControlStyles(); startGame(gState.activeGame); });
+    });
+    root.querySelectorAll('.gsound-btn').forEach((btn) => {
+      btn.addEventListener('click', () => { app().playSoftPop(); gState.soundMode = btn.dataset.gsound; syncControlStyles(); startGame(gState.activeGame); });
     });
     root.querySelectorAll('.gcase-btn').forEach((btn) => {
       btn.addEventListener('click', () => { app().playSoftPop(); gState.caseMode = btn.dataset.gcase; syncControlStyles(); startGame(gState.activeGame); });
@@ -297,6 +313,12 @@
       btn.className = active
         ? 'scope-btn px-2.5 py-1 rounded-xl text-xs font-black transition-all bg-indigo-500 text-white shadow-sm'
         : 'scope-btn px-2.5 py-1 rounded-xl text-xs font-bold transition-all bg-white text-indigo-800 border border-indigo-200 hover:bg-indigo-100';
+    });
+    root.querySelectorAll('.gsound-btn').forEach((btn) => {
+      const active = btn.dataset.gsound === gState.soundMode;
+      btn.className = active
+        ? 'gsound-btn px-2.5 py-1 rounded-lg text-xs font-black transition-all bg-fuchsia-500 text-white shadow-sm'
+        : 'gsound-btn px-2.5 py-1 rounded-lg text-xs font-bold transition-all text-indigo-800 hover:bg-indigo-100';
     });
     root.querySelectorAll('.gcase-btn').forEach((btn) => {
       const active = btn.dataset.gcase === gState.caseMode;
@@ -492,9 +514,9 @@
         if (!card) return;
         const item = chosen.find((x) => x.letter === card.dataset.key);
         if (card.dataset.side === 'left') {
-          if (matchedMap.has(card.dataset.key)) { app().speakEnglish(item.letter); return; }
+          if (matchedMap.has(card.dataset.key)) { playLetterPrompt(item.letter); return; }
           app().playSoftPop();
-          app().speakEnglish(item.letter, null, 0.78);
+          playLetterPrompt(item.letter);
           selectedLeft = card.dataset.key;
           draggingLeft = card.dataset.key;
           const bRect = boardWrap.getBoundingClientRect();
@@ -561,6 +583,7 @@
     const balloons = [];
     const particles = [];
     const popTexts = [];
+    const tapRipples = [];
     const clouds = [
       { x: 0.15, y: 0.14, s: 1.0, v: 0.008 },
       { x: 0.58, y: 0.22, s: 0.85, v: 0.006 },
@@ -590,7 +613,7 @@
       </div>
 
       <div id="balloonFeedback" class="mb-2.5 px-4 py-1.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm font-bold text-center">
-        🎯 找找看寫著「${formatLetter(targetItem)}（${targetItem.emoji} ${targetItem.word}）」的氣球，點一下戳破！
+        🎯 氣球在畫面上任何高度都可以點破！找寫著「${formatLetter(targetItem)}（${targetItem.emoji} ${targetItem.word}）」的氣球！
       </div>
 
       <div class="relative w-full h-[380px] sm:h-[430px] rounded-3xl overflow-hidden border-4 border-sky-200 shadow-inner bg-sky-100">
@@ -651,7 +674,7 @@
       }
 
       balloons.push({
-        item, x, baseX: x, y: startY !== null ? startY : ch + r + 10 + Math.random() * 50,
+        item, x, baseX: x, y: startY !== null ? startY : ch + r * 0.45 + Math.random() * 25,
         r, vy: baseSpeed + Math.random() * 20, swayAmp: 10 + Math.random() * 14,
         swayFreq: 1.2 + Math.random() * 0.9, phase: Math.random() * Math.PI * 2, pal, wobble: 0,
       });
@@ -669,7 +692,7 @@
       targetCharEl.textContent = formatLetter(targetItem);
       targetHintEl.textContent = `${targetItem.emoji} ${targetItem.word}`;
       feedbackEl.textContent = `🎯 找找看寫著「${formatLetter(targetItem)}（${targetItem.emoji} ${targetItem.word}）」的氣球！`;
-      app().speakEnglish(targetItem.letter, null, 0.78);
+      playLetterPrompt(targetItem.letter);
     }
 
     function spawnBurst(x, y, color) {
@@ -765,6 +788,21 @@
         ctx.strokeText(t.text, t.x, t.y); ctx.fillText(t.text, t.x, t.y); ctx.restore();
       }
 
+      for (let i = tapRipples.length - 1; i >= 0; i--) {
+        const rp = tapRipples[i];
+        rp.r += 110 * dt;
+        rp.life -= dt * 2.8;
+        if (rp.life <= 0) { tapRipples.splice(i, 1); continue; }
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, rp.life * 0.75);
+        ctx.strokeStyle = rp.hit ? '#F59E0B' : '#FFFFFF';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
       animId = requestAnimationFrame(tick);
     }
 
@@ -773,10 +811,12 @@
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
       const px = e.clientX - rect.left, py = e.clientY - rect.top;
+      let hitAny = false;
       for (let i = balloons.length - 1; i >= 0; i--) {
         const b = balloons[i];
-        const dx = (px - b.x) / (b.r * 1.18), dy = (py - b.y) / (b.r * 1.28);
+        const dx = (px - b.x) / (b.r * 1.38), dy = (py - b.y) / (b.r * 1.42);
         if (dx * dx + dy * dy <= 1) {
+          hitAny = true;
           if (b.item.letter === targetItem.letter) {
             balloons.splice(i, 1);
             stageScore += 1; totalScore += 1; combo += 1;
@@ -804,12 +844,13 @@
           } else {
             combo = 0; comboBadge.classList.add('hidden');
             b.wobble = 0.45; playGentleBoing();
-            app().speakEnglish(b.item.letter, null, 0.78);
+            playLetterPrompt(b.item.letter);
             feedbackEl.textContent = `那是「${formatLetter(b.item)}（${b.item.emoji} ${b.item.word}）」喔！我們要找「${formatLetter(targetItem)}」！`;
           }
           break;
         }
       }
+      tapRipples.push({ x: px, y: py, r: 8, life: 1, hit: hitAny });
     }
 
     resize();
@@ -820,12 +861,12 @@
     spawnBalloon('distractor', initHeights[3]);
     spawnBalloon('distractor', initHeights[4]);
 
-    app().speakEnglish(targetItem.letter, null, 0.78);
+    playLetterPrompt(targetItem.letter);
     animId = requestAnimationFrame(tick);
 
     canvas.addEventListener('pointerdown', onCanvasDown);
     window.addEventListener('resize', resize);
-    stage.querySelector('#balloonSpeakBtn').addEventListener('click', () => app().speakEnglish(targetItem.letter, null, 0.78));
+    stage.querySelector('#balloonSpeakBtn').addEventListener('click', () => playLetterPrompt(targetItem.letter));
 
     return () => {
       if (animId) cancelAnimationFrame(animId);
@@ -976,7 +1017,7 @@
       targetCharEl.textContent = formatLetter(targetItem);
       targetHintEl.textContent = `${targetItem.emoji} ${targetItem.word}`;
       feedbackEl.textContent = `🔨 下一隻！找抱著「${formatLetter(targetItem)}（${targetItem.emoji} ${targetItem.word}）」牌子的地鼠！`;
-      app().speakEnglish(targetItem.letter, null, 0.78);
+      playLetterPrompt(targetItem.letter);
     }
 
     function showHoleFx(holeEl, text, colorClass) {
@@ -1023,7 +1064,7 @@
         } else {
           combo = 0; comboBadge.classList.add('hidden');
           playGentleBoing();
-          app().speakEnglish(item.letter, null, 0.78);
+          playLetterPrompt(item.letter);
           showHoleFx(holeEl, formatLetter(item), 'text-rose-600');
           feedbackEl.textContent = `那是「${formatLetter(item)}（${item.emoji} ${item.word}）」地鼠喔！我們要敲「${formatLetter(targetItem)}」！`;
           holeEl.classList.remove('animate-gentle-shake'); void holeEl.offsetWidth; holeEl.classList.add('animate-gentle-shake');
@@ -1031,9 +1072,9 @@
       });
     });
 
-    stage.querySelector('#moleSpeakBtn').addEventListener('click', () => app().speakEnglish(targetItem.letter, null, 0.78));
+    stage.querySelector('#moleSpeakBtn').addEventListener('click', () => playLetterPrompt(targetItem.letter));
 
-    app().speakEnglish(targetItem.letter, null, 0.78);
+    playLetterPrompt(targetItem.letter);
     const initHoles = shuffle([0, 1, 2, 3, 4, 5, 6, 7, 8]).slice(0, 3);
     popUpHole(initHoles[0], 'distractor');
     popUpHole(initHoles[1], 'target');
@@ -1114,7 +1155,8 @@
           const cardData = cards[idx];
           app().playSoftPop();
           el.classList.add('is-flipped');
-          app().speakEnglish(cardData.kind === 'symbol' ? cardData.item.letter : cardData.item.word, null, 0.82);
+          if (cardData.kind === 'symbol') playLetterPrompt(cardData.item.letter);
+          else app().speakEnglish(cardData.item.word, null, 0.85);
 
           if (!firstCard) { firstCard = { el, data: cardData }; return; }
           moves += 1;
@@ -1268,18 +1310,18 @@
           } else {
             streak = 0;
             playGentleBoing();
-            app().speakEnglish(picked.letter, null, 0.78);
+            playLetterPrompt(picked.letter);
             feedbackEl.textContent = `那是「${formatLetter(picked)}（${picked.emoji} ${picked.word}）」喔！再聽一次看看！`;
             btn.classList.remove('animate-gentle-shake'); void btn.offsetWidth; btn.classList.add('animate-gentle-shake');
           }
         });
       });
 
-      app().speakEnglish(currentTarget.letter, speakerIcon, 0.78);
+      playLetterPrompt(currentTarget.letter, speakerIcon);
     }
 
     stage.querySelector('#listenPlayBtn').addEventListener('click', () => {
-      if (currentTarget) app().speakEnglish(currentTarget.letter, speakerIcon, 0.78);
+      if (currentTarget) playLetterPrompt(currentTarget.letter, speakerIcon);
     });
     hintBtn.addEventListener('click', () => {
       if (!currentTarget) return;
