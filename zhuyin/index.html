@@ -383,13 +383,19 @@
 
         <!-- 台灣生活語詞與雙發音卡片 -->
         <div class="bg-gradient-to-br from-sky-50 to-indigo-50 rounded-[2rem] p-4 sm:p-5 shadow-lg shadow-sky-900/5 border-4 border-sky-200/80">
-          <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center justify-between gap-2 mb-3">
             <span class="text-xs sm:text-sm font-bold text-sky-800 bg-white/85 px-3 py-1 rounded-full border border-sky-200">
               💡 台灣生活語詞
             </span>
-            <span id="pinyinHint" class="text-sm font-bold text-sky-700 font-kai tracking-widest">
-              ㄅㄚˋ ㄅㄚ˙
-            </span>
+            <div class="flex items-center gap-2">
+              <span id="pinyinHint" class="text-sm font-bold text-sky-700 font-kai tracking-widest">
+                ㄅㄚˋ ㄅㄚ˙
+              </span>
+              <button id="nextWordBtn" type="button" title="換一個範例語詞"
+                class="btn-3d px-2.5 py-1 rounded-full bg-white hover:bg-sky-100 text-sky-700 border border-sky-200 text-xs font-black shadow-sm">
+                🎲 換詞
+              </button>
+            </div>
           </div>
 
           <div class="bg-white/95 rounded-3xl p-4 border-2 border-sky-100 flex items-center gap-4">
@@ -397,19 +403,22 @@
               👨
             </div>
             <div>
-              <div class="text-xs font-bold text-slate-400 mb-0.5">生活範例詞</div>
+              <div class="flex items-center gap-1.5 mb-0.5">
+                <span class="text-xs font-bold text-slate-400">生活範例詞</span>
+                <span id="wordIndexBadge" class="text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-600 border border-sky-100">1 / 6</span>
+              </div>
               <div id="wordText" class="text-3xl sm:text-4xl font-black text-slate-800 tracking-wider">
                 爸爸
               </div>
             </div>
           </div>
 
-          <!-- 雙語音按鈕：聽發音 & 聽語詞 -->
+          <!-- 雙語音按鈕：聽發音（教育部標準音檔）& 聽語詞 -->
           <div class="grid grid-cols-2 gap-2.5 mt-3.5">
             <button id="speakCharBtn" type="button"
               class="btn-3d py-3 px-3 rounded-2xl bg-gradient-to-r from-sky-400 to-blue-400 hover:from-sky-500 hover:to-blue-500 text-white border-b-4 border-blue-600 font-black text-base shadow-md flex items-center justify-center gap-2">
               <span id="speakCharIcon" class="text-xl">🔊</span>
-              <span>聽發音</span>
+              <span>聽標準發音</span>
             </button>
 
             <button id="speakWordBtn" type="button"
@@ -516,6 +525,13 @@
 
     <!-- ========== 分頁 2：注音遊樂園（由 games.js 動態渲染） ========== -->
     <div id="gamesSection" class="hidden space-y-5"></div>
+
+    <!-- 教育部標準發音音檔授權標示 -->
+    <footer class="pt-2 pb-4 text-center text-[11px] sm:text-xs text-amber-900/60 font-medium">
+      🎙️ 注音符號標準發音音檔來源：2017 © 教育部《國語注音符號手冊－開放部件》，依
+      <a href="https://creativecommons.org/licenses/by/4.0/deed.zh_TW" target="_blank" rel="noopener" class="underline hover:text-amber-800">創用CC 姓名標示 4.0 國際版本</a>
+      授權使用。
+    </footer>
 
   </main>
 
@@ -1273,15 +1289,66 @@
 
     /**
      * =========================================================================
-     * 6. 標準國語語音朗讀 (zh-TW)
+     * 6. 教育部標準注音發音音檔 + 國語語音朗讀 (zh-TW)
      * =========================================================================
      */
+    const moeAudioCache = new Map();
+    let currentPlayingAudio = null;
+
+    function playZhuyinAudio(char, iconEl = null) {
+      // 優先使用中華民國教育部官方錄製的標準注音音檔 (F1.WAV ~ F37.WAV)
+      const url = window.ZhuyinDB && window.ZhuyinDB.getAudioUrl(char);
+      if (url) {
+        try {
+          if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+          if (currentPlayingAudio) {
+            currentPlayingAudio.pause();
+            currentPlayingAudio.currentTime = 0;
+          }
+          let audio = moeAudioCache.get(char);
+          if (!audio) {
+            audio = new Audio(url);
+            audio.preload = 'auto';
+            moeAudioCache.set(char, audio);
+          }
+          currentPlayingAudio = audio;
+          audio.currentTime = 0;
+
+          if (iconEl) {
+            iconEl.classList.add('speaking-pulse');
+            const clearPulse = () => iconEl.classList.remove('speaking-pulse');
+            audio.onended = clearPulse;
+            audio.onerror = clearPulse;
+          }
+
+          const playPromise = audio.play();
+          if (playPromise && typeof playPromise.catch === 'function') {
+            playPromise.catch(() => {
+              if (iconEl) iconEl.classList.remove('speaking-pulse');
+              const sym = ZHUYIN_DATA.find(z => z.char === char);
+              if (sym) speakText(sym.ttsChar, iconEl);
+            });
+          }
+          return;
+        } catch (err) {
+          console.warn('教育部音檔播放失敗，改用瀏覽器語音：', err);
+        }
+      }
+
+      const sym = ZHUYIN_DATA.find(z => z.char === char);
+      if (sym) speakText(sym.ttsChar, iconEl);
+    }
+
     function speakText(text, iconEl = null) {
       if (!('speechSynthesis' in window)) {
         showToast('目前的瀏覽器不支援語音朗讀喔！');
         return;
       }
       try {
+        if (currentPlayingAudio) {
+          currentPlayingAudio.pause();
+          currentPlayingAudio.currentTime = 0;
+        }
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'zh-TW';
@@ -2177,9 +2244,29 @@
       wordEmoji.textContent = item.emoji;
       wordText.textContent = item.word;
       pinyinHint.textContent = item.reading;
+      state.currentWordIdx = 0;
+      renderCurrentWordCard();
 
       updateStrokeProgressUI();
       renderSymbolGrid();
+    }
+
+    function getCurrentSymbolWords() {
+      const item = ZHUYIN_DATA[state.currentIndex];
+      const dbWords = window.ZhuyinDB && window.ZhuyinDB.getWords(item.char);
+      if (dbWords && dbWords.length > 0) return dbWords;
+      return [{ word: item.word, reading: item.reading, emoji: item.emoji }];
+    }
+
+    function renderCurrentWordCard() {
+      const words = getCurrentSymbolWords();
+      const idx = (state.currentWordIdx || 0) % words.length;
+      const w = words[idx];
+      wordEmoji.textContent = w.emoji;
+      wordText.textContent = w.word;
+      pinyinHint.textContent = w.reading;
+      const badge = document.getElementById('wordIndexBadge');
+      if (badge) badge.textContent = `${idx + 1} / ${words.length}`;
     }
 
     /**
@@ -2300,15 +2387,25 @@
       triggerSymbolSuccess(state.practiceMode === 'guide');
     });
 
-    // 雙語音按鈕
+    // 雙語音按鈕（注音使用教育部標準音檔，語詞使用國語朗讀）與換詞按鈕
     document.getElementById('speakCharBtn').addEventListener('click', () => {
       const item = ZHUYIN_DATA[state.currentIndex];
-      speakText(item.ttsChar, document.getElementById('speakCharIcon'));
+      playZhuyinAudio(item.char, document.getElementById('speakCharIcon'));
     });
 
     document.getElementById('speakWordBtn').addEventListener('click', () => {
-      const item = ZHUYIN_DATA[state.currentIndex];
-      speakText(item.ttsWord, document.getElementById('speakWordIcon'));
+      const words = getCurrentSymbolWords();
+      const w = words[(state.currentWordIdx || 0) % words.length];
+      speakText(w.word, document.getElementById('speakWordIcon'));
+    });
+
+    document.getElementById('nextWordBtn').addEventListener('click', () => {
+      playSoftPop();
+      const words = getCurrentSymbolWords();
+      state.currentWordIdx = ((state.currentWordIdx || 0) + 1) % words.length;
+      renderCurrentWordCard();
+      const w = words[state.currentWordIdx];
+      speakText(w.word, document.getElementById('speakWordIcon'));
     });
 
     // 筆刷粗細選擇
@@ -2443,6 +2540,7 @@
       ZHUYIN_DATA,
       CATEGORY_META,
       state,
+      playZhuyinAudio,
       speakText,
       playStrokeDing,
       playRewardSound,
@@ -2472,6 +2570,7 @@
 
     window.addEventListener('DOMContentLoaded', init);
   </script>
+  <script src="./vocab-db.js"></script>
   <script src="./games.js"></script>
 </body>
 </html>
