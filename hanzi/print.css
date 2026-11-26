@@ -1,0 +1,283 @@
+/* 國小生字字帖專用樣式與 A4 列印排版 */
+
+.font-kai {
+  font-family: "DFKai-SB", "BiauKai", "標楷體", "LXGW WenKai TC", serif;
+}
+
+/* 台灣標準直式注音排版 */
+.zhuyin-vertical {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  font-family: "DFKai-SB", "BiauKai", "標楷體", "Noto Sans TC", sans-serif;
+  line-height: 1;
+  user-select: none;
+}
+
+.zhuyin-main-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.05;
+}
+
+.zhuyin-neutral {
+  font-size: 0.72em;
+  line-height: 0.7;
+  margin-bottom: 1px;
+}
+
+.zhuyin-tone-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 1px;
+  font-size: 0.88em;
+  line-height: 1;
+}
+
+/* A4 預覽頁面（螢幕顯示） */
+.a4-preview-wrapper {
+  overflow-x: auto;
+  padding-bottom: 16px;
+}
+
+.a4-sheet {
+  width: 210mm;
+  min-height: 297mm;
+  background: #ffffff;
+  color: #1f2937;
+  margin: 0 auto 20px auto;
+  padding: 10mm 11mm;
+  box-sizing: border-box;
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  border: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 2px solid #dc2626;
+  padding-bottom: 4mm;
+  margin-bottom: 4.5mm;
+  gap: 8mm;
+}
+
+.sheet-title {
+  font-size: 16pt;
+  font-weight: 900;
+  color: #111827;
+  line-height: 1.2;
+}
+
+.sheet-meta-fields {
+  font-size: 9.5pt;
+  color: #374151;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.sheet-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 3.2mm;
+  flex: 1;
+}
+
+.copybook-row {
+  display: flex;
+  align-items: stretch;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* 每一列左側資訊欄（部首 / 總筆畫） */
+.row-info-col {
+  width: 11mm;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 7.5pt;
+  color: #4b5563;
+  border: 1px solid #f87171;
+  border-right: none;
+  background: #fff5f5;
+  padding: 1mm;
+  text-align: center;
+  line-height: 1.3;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* 單字方格（含右側直式注音格） */
+.hanzi-cells-group {
+  display: grid;
+  flex: 1;
+  border-top: 1.5px solid #ef4444;
+  border-left: 1.5px solid #ef4444;
+}
+
+.sheet-standard .hanzi-cells-group {
+  grid-template-columns: repeat(8, 1fr);
+}
+
+.sheet-large .hanzi-cells-group {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+.hanzi-cell {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  border-right: 1.5px solid #ef4444;
+  border-bottom: 1.5px solid #ef4444;
+  aspect-ratio: 1.18 / 1;
+  background-color: #ffffff;
+  overflow: hidden;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.hanzi-cell.no-zhuyin {
+  aspect-ratio: 1 / 1;
+}
+
+.cell-char-box {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* 三種標準格線 SVG 背景（列印高解析向量） */
+.grid-jiugong {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 90 90'%3E%3Cline x1='30' y1='0' x2='30' y2='90' stroke='%23fca5a5' stroke-width='0.9' stroke-dasharray='3,3'/%3E%3Cline x1='60' y1='0' x2='60' y2='90' stroke='%23fca5a5' stroke-width='0.9' stroke-dasharray='3,3'/%3E%3Cline x1='0' y1='30' x2='90' y2='30' stroke='%23fca5a5' stroke-width='0.9' stroke-dasharray='3,3'/%3E%3Cline x1='0' y1='60' x2='90' y2='60' stroke='%23fca5a5' stroke-width='0.9' stroke-dasharray='3,3'/%3E%3C/svg%3E");
+}
+
+.grid-shizi {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 90 90'%3E%3Cline x1='45' y1='0' x2='45' y2='90' stroke='%23fca5a5' stroke-width='0.9' stroke-dasharray='3,3'/%3E%3Cline x1='0' y1='45' x2='90' y2='45' stroke='%23fca5a5' stroke-width='0.9' stroke-dasharray='3,3'/%3E%3C/svg%3E");
+}
+
+.grid-mizi {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 90 90'%3E%3Cline x1='45' y1='0' x2='45' y2='90' stroke='%23fca5a5' stroke-width='0.9' stroke-dasharray='3,3'/%3E%3Cline x1='0' y1='45' x2='90' y2='45' stroke='%23fca5a5' stroke-width='0.9' stroke-dasharray='3,3'/%3E%3Cline x1='0' y1='0' x2='90' y2='90' stroke='%23fecaca' stroke-width='0.8' stroke-dasharray='3,3'/%3E%3Cline x1='90' y1='0' x2='0' y2='90' stroke='%23fecaca' stroke-width='0.8' stroke-dasharray='3,3'/%3E%3C/svg%3E");
+}
+
+.sheet-standard .cell-glyph {
+  font-size: 13.5mm;
+  line-height: 1;
+}
+
+.sheet-large .cell-glyph {
+  font-size: 18.5mm;
+  line-height: 1;
+}
+
+.cell-glyph-model {
+  color: #111827;
+}
+
+.cell-glyph-trace {
+  color: rgba(220, 38, 38, 0.24);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* 右側注音格 */
+.cell-zhuyin-box {
+  width: 24%;
+  min-width: 4.5mm;
+  border-left: 1px dashed #fca5a5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5mm;
+}
+
+.sheet-standard .cell-zhuyin-box {
+  font-size: 7pt;
+}
+
+.sheet-large .cell-zhuyin-box {
+  font-size: 8.5pt;
+}
+
+.cell-zhuyin-model {
+  color: #1f2937;
+}
+
+.cell-zhuyin-trace {
+  color: rgba(220, 38, 38, 0.28);
+}
+
+.sheet-footer {
+  margin-top: 3mm;
+  padding-top: 2mm;
+  border-top: 1px dashed #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  font-size: 8pt;
+  color: #6b7280;
+}
+
+/* =========================================================================
+   A4 列印專用規則 (@media print)
+   ========================================================================= */
+@page {
+  size: A4 portrait;
+  margin: 8mm;
+}
+
+@media print {
+  html, body {
+    background: #ffffff !important;
+    background-image: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  #printSection {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+  }
+
+  .a4-preview-wrapper {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  .a4-sheet {
+    width: 100% !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    padding: 2mm 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .a4-sheet:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+}

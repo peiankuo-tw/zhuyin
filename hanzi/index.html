@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>國小生字字帖小教室・線上描寫與 A4 列印</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700;900&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./print.css" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            rounded: ['"Zen Maru Gothic"', '"Noto Sans TC"', 'sans-serif'],
+            kai: ['"DFKai-SB"', '"BiauKai"', '"標楷體"', '"LXGW WenKai TC"', 'serif'],
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      font-family: 'Zen Maru Gothic', 'Noto Sans TC', sans-serif;
+      background-color: #FFFDF6;
+      background-image: radial-gradient(#FDE68A 1.2px, transparent 1.2px);
+      background-size: 24px 24px;
+      color: #3B3A36;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior-y: contain;
+    }
+
+    #hanziCanvas {
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: crosshair;
+    }
+
+    .btn-3d {
+      transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.15s ease;
+    }
+    .btn-3d:active {
+      transform: translateY(2px);
+    }
+
+    .rainbow-bg {
+      background: conic-gradient(from 0deg, #FF595E, #FFCA3A, #8AC926, #1982C4, #6A4C93, #FF595E);
+    }
+
+    @keyframes starPop {
+      0% { transform: scale(0) rotate(-35deg); opacity: 0; }
+      60% { transform: scale(1.25) rotate(10deg); opacity: 1; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    .animate-star-pop {
+      animation: starPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    input[type="range"] {
+      accent-color: #10B981;
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-12">
+
+  <!-- 慶祝紙花畫布 -->
+  <canvas id="confettiCanvas" class="no-print fixed inset-0 pointer-events-none z-50 w-full h-full"></canvas>
+
+  <!-- 頂部導覽列 -->
+  <header class="no-print sticky top-0 z-30 bg-[#FFFDF6]/95 backdrop-blur-md border-b-2 border-emerald-200/80 shadow-sm">
+    <div class="max-w-6xl mx-auto px-3 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-2.5">
+      <div class="flex items-center gap-2.5">
+        <a href="../index.html" title="回到快樂學習小教室首頁"
+          class="btn-3d px-2.5 sm:px-3 py-2 rounded-2xl bg-white hover:bg-amber-50 text-amber-800 border-2 border-amber-200 text-xs sm:text-sm font-black shadow-sm flex items-center gap-1 shrink-0">
+          <span>🏠</span>
+          <span class="hidden sm:inline">首頁</span>
+        </a>
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-300 to-teal-500 flex items-center justify-center text-xl shadow-md border-2 border-white shrink-0">
+          📝
+        </div>
+        <div>
+          <h1 class="text-base sm:text-xl font-black text-emerald-950 leading-tight">
+            國小生字字帖小教室
+          </h1>
+          <p class="text-xs text-emerald-700/80 font-medium hidden sm:block">
+            康軒・南一・翰林 1～6 年級＋自訂生字，線上描寫與 A4 列印
+          </p>
+        </div>
+      </div>
+
+      <!-- 主模式切換分頁 -->
+      <div class="flex items-center gap-1.5 bg-emerald-100/80 p-1 rounded-2xl border border-emerald-200">
+        <button id="modePracticeBtn" type="button"
+          class="btn-3d px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-black bg-white text-emerald-800 shadow-sm">
+          ✍️ 線上描寫
+        </button>
+        <button id="modePrintBtn" type="button"
+          class="btn-3d px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-black text-emerald-700 hover:bg-white/60">
+          🖨️ A4 列印字帖
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-3 sm:px-5 pt-4 sm:pt-5 space-y-5">
+
+    <!-- 生字選擇面板（線上描寫與 A4 列印共用） -->
+    <section class="no-print bg-white rounded-3xl border-2 border-amber-200 shadow-sm p-4 sm:p-5">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3.5">
+        <div class="flex items-center gap-1.5 bg-amber-50 p-1 rounded-2xl border border-amber-200">
+          <button id="sourceTextbookBtn" type="button"
+            class="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-black bg-amber-400 text-amber-950 shadow-sm">
+            📚 課本版本選字
+          </button>
+          <button id="sourceCustomBtn" type="button"
+            class="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-black text-amber-800 hover:bg-amber-100">
+            ✍️ 自訂輸入生字
+          </button>
+        </div>
+
+        <div class="text-xs sm:text-sm font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+          目前選取：<span id="activeCountBadge" class="font-black">0</span> 字
+        </div>
+      </div>
+
+      <!-- 字源 1：課本版本選字 -->
+      <div id="textbookSourcePane" class="space-y-3">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <label class="block">
+            <span class="block text-xs font-bold text-stone-500 mb-1">版本</span>
+            <select id="publisherSelect" class="w-full rounded-xl border-2 border-amber-200 bg-amber-50/40 px-3 py-2 text-sm font-bold text-stone-800 focus:outline-none focus:border-emerald-400">
+              <option value="kangxuan">康軒</option>
+              <option value="nanyi">南一</option>
+              <option value="hanlin">翰林</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="block text-xs font-bold text-stone-500 mb-1">年級</span>
+            <select id="gradeSelect" class="w-full rounded-xl border-2 border-amber-200 bg-amber-50/40 px-3 py-2 text-sm font-bold text-stone-800 focus:outline-none focus:border-emerald-400">
+              <option value="1">一年級</option>
+              <option value="2">二年級</option>
+              <option value="3">三年級</option>
+              <option value="4">四年級</option>
+              <option value="5">五年級</option>
+              <option value="6">六年級</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="block text-xs font-bold text-stone-500 mb-1">學期</span>
+            <select id="semesterSelect" class="w-full rounded-xl border-2 border-amber-200 bg-amber-50/40 px-3 py-2 text-sm font-bold text-stone-800 focus:outline-none focus:border-emerald-400">
+              <option value="1">上學期</option>
+              <option value="2">下學期</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="block text-xs font-bold text-stone-500 mb-1">課次</span>
+            <select id="lessonSelect" class="w-full rounded-xl border-2 border-amber-200 bg-amber-50/40 px-3 py-2 text-sm font-bold text-stone-800 focus:outline-none focus:border-emerald-400">
+              <option>載入中...</option>
+            </select>
+          </label>
+        </div>
+
+        <!-- 該課生字快速勾選區 -->
+        <div class="bg-amber-50/60 rounded-2xl p-3 border border-amber-200/70">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <span class="text-xs font-bold text-amber-900">點選生字可單獨勾選或取消：</span>
+            <div class="flex flex-wrap items-center gap-1.5">
+              <button id="selectAllLessonBtn" type="button" class="px-2.5 py-1 rounded-lg bg-white border border-amber-300 text-xs font-bold text-amber-900 hover:bg-amber-100">全選</button>
+              <button id="clearLessonBtn" type="button" class="px-2.5 py-1 rounded-lg bg-white border border-amber-300 text-xs font-bold text-stone-600 hover:bg-amber-100">清空</button>
+              <button id="copyToCustomBtn" type="button" class="px-2.5 py-1 rounded-lg bg-emerald-100 border border-emerald-300 text-xs font-black text-emerald-800 hover:bg-emerald-200">✏️ 帶入自訂區微調</button>
+            </div>
+          </div>
+          <div id="lessonCharChips" class="flex flex-wrap gap-1.5"></div>
+          <p class="text-[11px] text-stone-500 mt-2">
+            💡 課本每年可能微調個別生字，點「帶入自訂區微調」即可自由增刪本週要練的字。
+          </p>
+        </div>
+      </div>
+
+      <!-- 字源 2：自訂輸入生字 -->
+      <div id="customSourcePane" class="hidden space-y-3">
+        <div>
+          <textarea id="customCharsInput" rows="2" placeholder="直接輸入或貼上本週生字、課文詞語（會自動過濾標點與空白），例如：春天花開風吹暖"
+            class="w-full rounded-2xl border-2 border-emerald-200 bg-emerald-50/30 p-3 text-base font-bold text-stone-800 focus:outline-none focus:border-emerald-400"></textarea>
+          <div class="flex flex-wrap items-center justify-between gap-2 mt-2">
+            <label class="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-stone-700 cursor-pointer">
+              <input id="dedupeCheckbox" type="checkbox" checked class="w-4 h-4 accent-emerald-600 rounded" />
+              <span>自動去除重複字</span>
+            </label>
+            <div class="flex flex-wrap items-center gap-2">
+              <button id="applyCustomBtn" type="button"
+                class="btn-3d px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs sm:text-sm font-black shadow-sm">
+                ✓ 套用生字
+              </button>
+              <button id="saveCustomListBtn" type="button"
+                class="btn-3d px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 text-xs sm:text-sm font-black">
+                💾 儲存成我的清單
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 已儲存的自訂清單 -->
+        <div id="savedListsWrap" class="bg-amber-50/60 rounded-2xl p-3 border border-amber-200/70">
+          <div class="text-xs font-bold text-amber-900 mb-2">📌 我的常用生字清單：</div>
+          <div id="savedListsContainer" class="flex flex-wrap gap-2 text-xs text-stone-500">
+            尚未儲存清單
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         模式一：✍️ 線上互動描寫區
+         =================================================================== -->
+    <section id="practiceSection" class="no-print space-y-4">
+      <!-- 空清單提示 -->
+      <div id="practiceEmptyState" class="hidden bg-white rounded-3xl border-2 border-dashed border-amber-300 p-10 text-center">
+        <div class="text-4xl mb-2">✏️</div>
+        <p class="text-base font-black text-amber-900">目前還沒有選取任何生字喔！</p>
+        <p class="text-sm text-stone-500 mt-1">請在上方選擇課本課次，或在「自訂輸入生字」貼上想練習的國字。</p>
+      </div>
+
+      <!-- 主練習區 -->
+      <div id="practiceWorkspace" class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+
+        <!-- 左側：生字資訊卡＋發音＋破音字切換 -->
+        <div class="lg:col-span-4 bg-white rounded-3xl border-2 border-emerald-200 shadow-sm p-5 space-y-4">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div id="infoBigChar" class="font-kai text-6xl sm:text-7xl leading-none text-stone-900 select-none">學</div>
+              <div id="infoZhuyinBox" class="text-xl sm:text-2xl font-bold text-emerald-800"></div>
+            </div>
+
+            <button id="speakCharBtn" type="button" title="唸出這個字"
+              class="btn-3d w-12 h-12 rounded-2xl bg-amber-100 hover:bg-amber-200 border-2 border-amber-300 text-2xl flex items-center justify-center shrink-0">
+              🔊
+            </button>
+          </div>
+
+          <!-- 破音字切換列（只有多讀音時顯示） -->
+          <div id="polyphoneBar" class="hidden bg-amber-50 rounded-2xl p-2.5 border border-amber-200">
+            <div class="text-xs font-bold text-amber-900 mb-1.5">🔄 此字為破音字，點選切換正確讀音：</div>
+            <div id="polyphoneButtons" class="flex flex-wrap gap-1.5"></div>
+          </div>
+
+          <!-- 部首 / 總筆畫 / 狀態 -->
+          <div class="grid grid-cols-2 gap-2.5 text-center">
+            <div class="bg-emerald-50/80 rounded-2xl p-2.5 border border-emerald-200/70">
+              <div class="text-[11px] font-bold text-emerald-700">部首</div>
+              <div id="infoRadical" class="text-lg font-black text-emerald-950 font-kai">—</div>
+            </div>
+            <div class="bg-emerald-50/80 rounded-2xl p-2.5 border border-emerald-200/70">
+              <div class="text-[11px] font-bold text-emerald-700">總筆畫</div>
+              <div id="infoStrokeCount" class="text-lg font-black text-emerald-950">—</div>
+            </div>
+          </div>
+
+          <!-- 筆順狀態提示 -->
+          <div id="strokeStatusBanner" class="text-xs font-bold px-3 py-2 rounded-xl bg-stone-100 text-stone-600">
+            載入台灣教育部標準筆順中...
+          </div>
+
+          <!-- 筆順示範控制 -->
+          <div class="space-y-2">
+            <div class="text-xs font-black text-stone-500">台灣教育部筆順示範</div>
+            <div class="grid grid-cols-2 gap-2">
+              <button id="playNormalBtn" type="button"
+                class="btn-3d py-2 px-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs sm:text-sm font-black shadow-sm">
+                ▶ 播放筆順
+              </button>
+              <button id="playSlowBtn" type="button"
+                class="btn-3d py-2 px-3 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 text-xs sm:text-sm font-black">
+                🐢 慢速播放
+              </button>
+              <button id="stepStrokeBtn" type="button"
+                class="btn-3d py-2 px-3 rounded-xl bg-sky-100 hover:bg-sky-200 text-sky-900 border border-sky-300 text-xs sm:text-sm font-black">
+                👣 單步看下一筆
+              </button>
+              <button id="toggleGuideBtn" type="button"
+                class="btn-3d py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs sm:text-sm font-black">
+                👁️ 底字：開
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右側：互動描寫畫布與筆刷工具 -->
+        <div class="lg:col-span-8 bg-white rounded-3xl border-2 border-emerald-200 shadow-sm p-4 sm:p-5 space-y-4">
+          <!-- 畫布頂部：格線切換與筆順計數 -->
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-1.5 bg-stone-100 p-1 rounded-xl">
+              <button data-grid="jiugong" class="grid-btn px-3 py-1 rounded-lg text-xs font-black bg-white text-rose-700 shadow-sm">九宮格</button>
+              <button data-grid="shizi" class="grid-btn px-3 py-1 rounded-lg text-xs font-black text-stone-600">十字格</button>
+              <button data-grid="mizi" class="grid-btn px-3 py-1 rounded-lg text-xs font-black text-stone-600">米字格</button>
+            </div>
+            <div id="stepIndicator" class="text-xs font-black text-orange-700 bg-orange-50 px-3 py-1 rounded-full border border-orange-200">
+              筆順準備就緒
+            </div>
+          </div>
+
+          <!-- 正方形描寫畫布 -->
+          <div class="relative mx-auto w-full max-w-[380px] aspect-square rounded-2xl overflow-hidden shadow-inner border-2 border-rose-200 bg-white">
+            <canvas id="hanziCanvas" class="w-full h-full block"></canvas>
+            <!-- 星星蓋章覆蓋層 -->
+            <div id="starStampOverlay" class="hidden absolute inset-0 pointer-events-none flex items-center justify-center bg-amber-50/30">
+              <div class="animate-star-pop text-7xl drop-shadow-lg">⭐</div>
+            </div>
+          </div>
+
+          <!-- 筆刷工具列 -->
+          <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <!-- 顏色 -->
+            <div class="flex items-center gap-2">
+              <button data-color="#1F2937" title="黑色" class="color-btn w-8 h-8 rounded-full bg-stone-800 border-2 border-white shadow ring-2 ring-transparent"></button>
+              <button data-color="#2563EB" title="藍色" class="color-btn w-8 h-8 rounded-full bg-blue-600 border-2 border-white shadow ring-2 ring-emerald-500 scale-110"></button>
+              <button data-color="#E11D48" title="紅色" class="color-btn w-8 h-8 rounded-full bg-rose-600 border-2 border-white shadow ring-2 ring-transparent"></button>
+              <button data-color="rainbow" title="彩虹筆" class="color-btn w-8 h-8 rounded-full rainbow-bg border-2 border-white shadow ring-2 ring-transparent"></button>
+              <div class="flex items-center gap-1.5 ml-2">
+                <span class="text-xs font-bold text-stone-500">粗細</span>
+                <input id="brushWidthInput" type="range" min="6" max="26" value="14" class="w-20 sm:w-24" />
+              </div>
+            </div>
+
+            <!-- 操作按鈕 -->
+            <div class="flex items-center gap-2">
+              <button id="undoBtn" type="button"
+                class="btn-3d px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs sm:text-sm font-black">
+                ↩ 復原
+              </button>
+              <button id="clearBtn" type="button"
+                class="btn-3d px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs sm:text-sm font-black">
+                🧹 清除
+              </button>
+              <button id="completeCharBtn" type="button"
+                class="btn-3d px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white text-xs sm:text-sm font-black shadow-md">
+                ⭐ 寫好了！
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 底部生字切換列 -->
+      <div id="practiceCharStripCard" class="bg-white rounded-3xl border-2 border-amber-200 shadow-sm p-3.5 flex items-center gap-2">
+        <button id="prevCharBtn" type="button"
+          class="btn-3d px-3 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-black text-sm shrink-0">
+          ◀
+        </button>
+        <div id="practiceCharStrip" class="flex-1 flex items-center gap-2 overflow-x-auto py-1 px-1"></div>
+        <button id="nextCharBtn" type="button"
+          class="btn-3d px-3 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-black text-sm shrink-0">
+          ▶
+        </button>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         模式二：🖨️ A4 列印字帖區
+         =================================================================== -->
+    <section id="printSection" class="hidden space-y-4">
+      <!-- 列印設定面板 -->
+      <div class="no-print bg-white rounded-3xl border-2 border-emerald-200 shadow-sm p-4 sm:p-5 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base sm:text-lg font-black text-emerald-950">A4 字帖排版設定</h2>
+            <p class="text-xs text-stone-500">調整設定後下方會即時預覽，確認無誤按「列印 / 存成 PDF」即可輸出清晰向量字帖。</p>
+          </div>
+          <button id="printNowBtn" type="button"
+            class="btn-3d px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm font-black shadow-md disabled:opacity-40 disabled:cursor-not-allowed">
+            🖨️ 列印 / 存成 PDF
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <label class="block sm:col-span-2">
+            <span class="block text-xs font-bold text-stone-500 mb-1">字帖標題</span>
+            <input id="printTitleInput" type="text" value="國小生字字帖練習"
+              class="w-full rounded-xl border-2 border-emerald-200 px-3 py-2 text-sm font-bold text-stone-800 focus:outline-none focus:border-emerald-400" />
+          </label>
+          <label class="block">
+            <span class="block text-xs font-bold text-stone-500 mb-1">格線樣式</span>
+            <select id="printGridSelect" class="w-full rounded-xl border-2 border-emerald-200 px-3 py-2 text-sm font-bold text-stone-800">
+              <option value="jiugong">九宮格（國小常用）</option>
+              <option value="shizi">十字格</option>
+              <option value="mizi">米字格</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="block text-xs font-bold text-stone-500 mb-1">格子大小</span>
+            <select id="printSizeSelect" class="w-full rounded-xl border-2 border-emerald-200 px-3 py-2 text-sm font-bold text-stone-800">
+              <option value="standard">標準（每列 8 格／每頁 10 列）</option>
+              <option value="large">大格（每列 6 格／每頁 8 列，適合低年級）</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-4 pt-1 border-t border-stone-100">
+          <label class="flex items-center gap-2 text-xs sm:text-sm font-bold text-stone-700">
+            <span>描紅格數：</span>
+            <select id="printTraceCountSelect" class="rounded-xl border-2 border-emerald-200 px-2.5 py-1 text-sm font-bold">
+              <option value="0">0 格（全空白練習）</option>
+              <option value="1">1 格描紅</option>
+              <option value="2" selected>2 格描紅</option>
+              <option value="3">3 格描紅</option>
+              <option value="4">4 格描紅</option>
+              <option value="5">5 格描紅</option>
+            </select>
+          </label>
+          <label class="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-stone-700 cursor-pointer">
+            <input id="printShowZhuyin" type="checkbox" checked class="w-4 h-4 accent-emerald-600" />
+            <span>顯示直式注音格</span>
+          </label>
+          <label class="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-stone-700 cursor-pointer">
+            <input id="printShowInfo" type="checkbox" checked class="w-4 h-4 accent-emerald-600" />
+            <span>顯示部首與筆畫</span>
+          </label>
+          <span id="printLoadingHint" class="hidden text-xs font-bold text-emerald-700">⏳ 正在補齊注音與部首資料...</span>
+        </div>
+      </div>
+
+      <!-- A4 即時預覽與列印本體 -->
+      <div id="a4PreviewContainer" class="a4-preview-wrapper"></div>
+    </section>
+
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
