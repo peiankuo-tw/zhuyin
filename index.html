@@ -1,0 +1,2294 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>快樂學注音・描線小教室（筆順優化版）</title>
+  <!-- 載入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 載入圓潤可愛的繁體中文字型 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            rounded: ['"Zen Maru Gothic"', '"Noto Sans TC"', 'sans-serif'],
+            kai: ['"DFKai-SB"', '"BiauKai"', '"標楷體"', '"STKaiti"', '"Kaiti TC"', '"Noto Sans TC"', 'serif'],
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* 基礎字型與溫馨點點背景 */
+    body {
+      font-family: 'Zen Maru Gothic', 'Noto Sans TC', sans-serif;
+      background-color: #FFFDF6;
+      background-image: radial-gradient(#FDE68A 1.2px, transparent 1.2px);
+      background-size: 24px 24px;
+      color: #3B3A36;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior-y: contain;
+    }
+
+    /* 畫布設定 touch-action: none，防止平板與手機書寫時誤觸捲動 */
+    #tracingCanvas {
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: crosshair;
+    }
+
+    /* 童趣立體按鈕按壓手感 */
+    .btn-3d {
+      transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.15s ease;
+    }
+    .btn-3d:active {
+      transform: translateY(2px);
+    }
+
+    /* 彩虹筆按鈕漸層 */
+    .rainbow-bg {
+      background: conic-gradient(
+        from 0deg,
+        #FF595E,
+        #FFCA3A,
+        #8AC926,
+        #1982C4,
+        #6A4C93,
+        #FF595E
+      );
+    }
+
+    /* 星星蓋章彈跳動畫 */
+    @keyframes starPop {
+      0% { transform: scale(0) rotate(-35deg); opacity: 0; }
+      60% { transform: scale(1.3) rotate(12deg); opacity: 1; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    .animate-star-pop {
+      animation: starPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    /* 朗讀時的音波彈跳 */
+    @keyframes speakBounce {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+    }
+    .speaking-pulse {
+      animation: speakBounce 0.55s ease-in-out infinite;
+    }
+
+    /* 柔和捲軸 */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #FEF3C7;
+      border-radius: 999px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #FDBA74;
+      border-radius: 999px;
+    }
+
+    /* 滑桿美化 */
+    input[type="range"] {
+      accent-color: #FB923C;
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-10">
+
+  <!-- 慶祝紙花畫布（全螢幕覆蓋，不阻擋任何點擊） -->
+  <canvas id="confettiCanvas" class="fixed inset-0 pointer-events-none z-50 w-full h-full"></canvas>
+
+  <!-- 頂部導覽與總學習進度列 -->
+  <header class="sticky top-0 z-30 bg-[#FFFDF6]/95 backdrop-blur-md border-b-2 border-amber-200/80 shadow-sm">
+    <div class="max-w-6xl mx-auto px-3 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-2.5">
+      <!-- 標題 Logo -->
+      <div class="flex items-center gap-2.5">
+        <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-amber-300 to-orange-400 flex items-center justify-center text-xl sm:text-2xl shadow-md border-2 border-white shrink-0">
+          ✏️
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <h1 class="text-lg sm:text-2xl font-black text-amber-900 tracking-wide leading-tight">
+              快樂學注音・描線小教室
+            </h1>
+            <span class="hidden md:inline-block px-2 py-0.5 rounded-full text-xs font-black bg-orange-100 text-orange-700 border border-orange-200">
+              筆順優化版
+            </span>
+          </div>
+          <p class="text-xs text-amber-700/80 font-medium hidden sm:block">
+            跟著標準筆順一筆一畫慢慢寫，收集 37 顆閃亮小星星！
+          </p>
+        </div>
+      </div>
+
+      <!-- 進度條與重置按鈕 -->
+      <div class="flex items-center gap-2.5 flex-1 sm:flex-initial justify-end min-w-[200px]">
+        <div class="flex-1 sm:w-48 bg-amber-100/90 rounded-2xl p-2 border border-amber-200">
+          <div class="flex justify-between items-center text-xs font-bold text-amber-900 mb-1 px-0.5">
+            <span>⭐ 學習進度</span>
+            <span id="progressText">0 / 37</span>
+          </div>
+          <div class="w-full h-2.5 bg-white rounded-full overflow-hidden border border-amber-200/70">
+            <div id="progressBar" class="h-full bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <button id="resetProgressBtn" type="button" title="重置所有練習進度"
+          class="btn-3d px-3 py-2.5 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 border-2 border-rose-200 text-xs sm:text-sm font-bold shadow-sm flex items-center gap-1 shrink-0">
+          <span>🔄</span>
+          <span class="hidden sm:inline">重置</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主要學習區 -->
+  <main class="max-w-6xl mx-auto px-3 sm:px-5 pt-4 space-y-5">
+
+    <!-- 上半部：田字格描寫畫布 + 語詞發音與畫筆工具 -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start">
+
+      <!-- 左側主區：田字格畫布與筆順控制 (佔 7 欄) -->
+      <div class="lg:col-span-7 bg-white rounded-[2rem] p-3.5 sm:p-5 shadow-lg shadow-amber-900/5 border-4 border-amber-200/80">
+
+        <!-- 畫布頂部：切換上一個/下一個 + 當前注音與筆劃數 -->
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <button id="prevBtn" type="button"
+            class="btn-3d px-3.5 sm:px-4 py-2 rounded-2xl bg-sky-100 hover:bg-sky-200 text-sky-800 border-b-4 border-sky-300 font-bold text-sm sm:text-base flex items-center gap-1">
+            <span>⬅️</span>
+            <span>上一個</span>
+          </button>
+
+          <div class="flex items-center gap-2">
+            <span id="currentCategoryBadge" class="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200">
+              聲母
+            </span>
+            <span id="currentSymbolHeader" class="text-3xl sm:text-4xl font-black font-kai text-amber-900 leading-none">
+              ㄅ
+            </span>
+            <span id="strokeCountBadge" class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+              共 2 畫
+            </span>
+            <span id="currentStarStatus" class="text-2xl hidden animate-star-pop" title="已完成練習">⭐</span>
+          </div>
+
+          <button id="nextBtn" type="button"
+            class="btn-3d px-3.5 sm:px-4 py-2 rounded-2xl bg-sky-100 hover:bg-sky-200 text-sky-800 border-b-4 border-sky-300 font-bold text-sm sm:text-base flex items-center gap-1">
+            <span>下一個</span>
+            <span>➡️</span>
+          </button>
+        </div>
+
+        <!-- 四種練習模式切換列 -->
+        <div class="grid grid-cols-4 gap-1.5 sm:gap-2 mb-3 bg-amber-50/90 p-1.5 rounded-2xl border-2 border-amber-100">
+          <button data-mode="guide" type="button"
+            class="mode-btn py-2 px-1 sm:px-2 rounded-xl text-xs sm:text-sm font-black transition-all bg-gradient-to-b from-orange-400 to-amber-500 text-white shadow-sm">
+            ✨ 筆順引導
+          </button>
+          <button data-mode="trace" type="button"
+            class="mode-btn py-2 px-1 sm:px-2 rounded-xl text-xs sm:text-sm font-bold transition-all bg-white text-amber-900 hover:bg-amber-100">
+            ✏️ 完整描線
+          </button>
+          <button data-mode="dashed" type="button"
+            class="mode-btn py-2 px-1 sm:px-2 rounded-xl text-xs sm:text-sm font-bold transition-all bg-white text-amber-900 hover:bg-amber-100">
+            〰️ 虛線輪廓
+          </button>
+          <button data-mode="memory" type="button"
+            class="mode-btn py-2 px-1 sm:px-2 rounded-xl text-xs sm:text-sm font-bold transition-all bg-white text-amber-900 hover:bg-amber-100">
+            🧠 挑戰默寫
+          </button>
+        </div>
+
+        <!-- 筆順動畫控制列（看筆順 + 速度 + 當前筆劃進度提示） -->
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3 px-1">
+          <div class="flex items-center gap-2">
+            <button id="playAnimBtn" type="button"
+              class="btn-3d px-4 py-2 rounded-2xl bg-gradient-to-r from-violet-400 to-purple-500 hover:from-violet-500 hover:to-purple-600 text-white border-b-4 border-purple-700 font-black text-sm shadow-sm flex items-center gap-1.5">
+              <span id="playAnimIcon">▶</span>
+              <span id="playAnimText">看筆順</span>
+            </button>
+
+            <!-- 速度切換 -->
+            <div class="inline-flex rounded-xl bg-purple-50 border border-purple-200 p-0.5">
+              <button id="speedSlowBtn" type="button"
+                class="speed-btn px-2.5 py-1 rounded-lg text-xs font-bold transition-all bg-purple-500 text-white shadow-sm">
+                🐢 慢速
+              </button>
+              <button id="speedNormalBtn" type="button"
+                class="speed-btn px-2.5 py-1 rounded-lg text-xs font-bold transition-all text-purple-800 hover:bg-purple-100">
+                🐰 正常
+              </button>
+            </div>
+          </div>
+
+          <!-- 即時筆劃進度提示 -->
+          <div id="strokeProgressPill"
+            class="px-3 py-1.5 rounded-full text-xs sm:text-sm font-black bg-orange-50 text-orange-700 border-2 border-orange-200 flex items-center gap-1.5">
+            <span>👆</span>
+            <span id="strokeProgressText">第 1 畫 / 共 2 畫</span>
+          </div>
+        </div>
+
+        <!-- 大面積正方形田字格畫布 -->
+        <div class="relative w-full max-w-[460px] mx-auto aspect-square rounded-3xl overflow-hidden bg-white shadow-inner border-4 border-orange-300/90">
+          <canvas id="tracingCanvas" class="w-full h-full block"></canvas>
+
+          <!-- 畫布浮動提示膠囊（取代 alert） -->
+          <div id="canvasToast"
+            class="pointer-events-none opacity-0 transition-opacity duration-300 absolute bottom-3 left-1/2 -translate-x-1/2 bg-amber-900/92 text-white text-xs sm:text-sm font-bold px-4 py-2 rounded-full shadow-lg text-center max-w-[92%]">
+            跟著發光的數字圓點開始描寫喔！
+          </div>
+        </div>
+
+        <!-- 筆順提示開關與底字深淺滑桿 -->
+        <div class="mt-3.5 bg-amber-50/90 rounded-2xl p-3 border-2 border-amber-100 flex flex-wrap items-center justify-between gap-3">
+          <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+            <input id="showArrowsToggle" type="checkbox" checked class="w-5 h-5 rounded accent-orange-500 cursor-pointer" />
+            <span class="text-xs sm:text-sm font-bold text-amber-900">顯示筆順數字與方向箭頭</span>
+          </label>
+
+          <div id="opacityControlWrap" class="flex items-center gap-2">
+            <label for="opacitySlider" class="text-xs font-bold text-amber-800 whitespace-nowrap">底字深淺</label>
+            <input id="opacitySlider" type="range" min="12" max="65" value="28" class="w-24 sm:w-28 cursor-pointer" />
+          </div>
+        </div>
+
+        <!-- 底部操作按鈕列：復原、清除、我寫好了 -->
+        <div class="mt-3.5 grid grid-cols-2 sm:grid-cols-12 gap-2.5">
+          <button id="undoBtn" type="button"
+            class="btn-3d sm:col-span-3 py-3 px-3 rounded-2xl bg-amber-100 hover:bg-amber-200 text-amber-900 border-b-4 border-amber-300 font-bold text-sm sm:text-base flex items-center justify-center gap-1.5">
+            <span>↩️</span>
+            <span>復原</span>
+          </button>
+
+          <button id="clearBtn" type="button"
+            class="btn-3d sm:col-span-3 py-3 px-3 rounded-2xl bg-rose-100 hover:bg-rose-200 text-rose-800 border-b-4 border-rose-300 font-bold text-sm sm:text-base flex items-center justify-center gap-1.5">
+            <span>🧹</span>
+            <span>清除重寫</span>
+          </button>
+
+          <button id="doneBtn" type="button"
+            class="btn-3d col-span-2 sm:col-span-6 py-3 px-5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-500 hover:to-teal-500 text-white border-b-4 border-emerald-600 font-black text-base sm:text-lg shadow-md flex items-center justify-center gap-2">
+            <span>🌟</span>
+            <span>我寫好了！</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 右側：語詞與發音卡片 + 畫筆工具箱 (佔 5 欄) -->
+      <div class="lg:col-span-5 space-y-4 sm:space-y-5">
+
+        <!-- 台灣生活語詞與雙發音卡片 -->
+        <div class="bg-gradient-to-br from-sky-50 to-indigo-50 rounded-[2rem] p-4 sm:p-5 shadow-lg shadow-sky-900/5 border-4 border-sky-200/80">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs sm:text-sm font-bold text-sky-800 bg-white/85 px-3 py-1 rounded-full border border-sky-200">
+              💡 台灣生活語詞
+            </span>
+            <span id="pinyinHint" class="text-sm font-bold text-sky-700 font-kai tracking-widest">
+              ㄅㄚˋ ㄅㄚ˙
+            </span>
+          </div>
+
+          <div class="bg-white/95 rounded-3xl p-4 border-2 border-sky-100 flex items-center gap-4">
+            <div id="wordEmoji" class="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-amber-50 border-2 border-amber-200 flex items-center justify-center text-4xl sm:text-5xl shadow-sm shrink-0">
+              👨
+            </div>
+            <div>
+              <div class="text-xs font-bold text-slate-400 mb-0.5">生活範例詞</div>
+              <div id="wordText" class="text-3xl sm:text-4xl font-black text-slate-800 tracking-wider">
+                爸爸
+              </div>
+            </div>
+          </div>
+
+          <!-- 雙語音按鈕：聽發音 & 聽語詞 -->
+          <div class="grid grid-cols-2 gap-2.5 mt-3.5">
+            <button id="speakCharBtn" type="button"
+              class="btn-3d py-3 px-3 rounded-2xl bg-gradient-to-r from-sky-400 to-blue-400 hover:from-sky-500 hover:to-blue-500 text-white border-b-4 border-blue-600 font-black text-base shadow-md flex items-center justify-center gap-2">
+              <span id="speakCharIcon" class="text-xl">🔊</span>
+              <span>聽發音</span>
+            </button>
+
+            <button id="speakWordBtn" type="button"
+              class="btn-3d py-3 px-3 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white border-b-4 border-orange-600 font-black text-base shadow-md flex items-center justify-center gap-2">
+              <span id="speakWordIcon" class="text-xl">💬</span>
+              <span>聽語詞</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 畫筆顏色與粗細工具箱 -->
+        <div class="bg-white rounded-[2rem] p-4 sm:p-5 shadow-lg shadow-amber-900/5 border-4 border-purple-200/80 space-y-4">
+          <!-- 顏色選擇 -->
+          <div>
+            <div class="flex items-center justify-between mb-2.5">
+              <h2 class="text-base font-black text-purple-900 flex items-center gap-1.5">
+                <span>🎨</span>
+                <span>畫筆顏色</span>
+              </h2>
+              <span id="currentColorName" class="text-xs font-bold px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                草莓紅
+              </span>
+            </div>
+
+            <div id="colorPalette" class="grid grid-cols-7 gap-2">
+              <!-- 由 JS 動態生成 7 種可愛畫筆 -->
+            </div>
+          </div>
+
+          <!-- 筆刷粗細 -->
+          <div>
+            <h2 class="text-base font-black text-purple-900 flex items-center gap-1.5 mb-2.5">
+              <span>🖌️</span>
+              <span>筆觸粗細</span>
+            </h2>
+
+            <div class="grid grid-cols-3 gap-2.5">
+              <button data-size="small" type="button"
+                class="size-btn btn-3d py-2.5 px-3 rounded-2xl border-2 border-purple-200 bg-purple-50/50 hover:bg-purple-100 flex flex-col items-center justify-center gap-1.5 transition-all">
+                <span class="w-3 h-3 rounded-full bg-slate-700"></span>
+                <span class="text-xs font-bold text-slate-700">細筆</span>
+              </button>
+
+              <button data-size="medium" type="button"
+                class="size-btn btn-3d py-2.5 px-3 rounded-2xl border-2 border-purple-500 bg-purple-100 ring-2 ring-purple-300 flex flex-col items-center justify-center gap-1.5 transition-all">
+                <span class="w-5 h-5 rounded-full bg-slate-700"></span>
+                <span class="text-xs font-bold text-purple-900">中筆</span>
+              </button>
+
+              <button data-size="large" type="button"
+                class="size-btn btn-3d py-2.5 px-3 rounded-2xl border-2 border-purple-200 bg-purple-50/50 hover:bg-purple-100 flex flex-col items-center justify-center gap-1.5 transition-all">
+                <span class="w-7 h-7 rounded-full bg-slate-700"></span>
+                <span class="text-xs font-bold text-slate-700">粗筆</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 筆順小提示卡片 -->
+          <div class="bg-amber-50 rounded-2xl p-3 border border-amber-200/80 text-xs sm:text-sm text-amber-900/90 leading-relaxed">
+            <span class="font-black text-orange-600">🌟 練習小秘訣：</span>
+            在「筆順引導」模式中，從<strong>閃亮亮的數字圓點</strong>開始，沿著虛線與箭頭畫過去，寫對就會聽到清脆的「叮！」喔！
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 下半部：37 個注音符號分頁選單 -->
+    <section class="bg-white rounded-[2rem] p-4 sm:p-5 shadow-lg shadow-amber-900/5 border-4 border-emerald-200/80">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h2 class="text-base sm:text-xl font-black text-emerald-900 flex items-center gap-2">
+          <span>📚</span>
+          <span>選擇注音符號（共 37 個）</span>
+        </h2>
+
+        <!-- 分類分頁 -->
+        <div class="flex flex-wrap gap-1.5 sm:gap-2" id="categoryTabs">
+          <button data-cat="all" type="button"
+            class="cat-tab px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-bold transition-all bg-emerald-400 text-white shadow-sm">
+            全部 (37)
+          </button>
+          <button data-cat="initial" type="button"
+            class="cat-tab px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-bold transition-all bg-rose-50 text-rose-700 border-2 border-rose-200 hover:bg-rose-100">
+            聲母 (21)
+          </button>
+          <button data-cat="medial" type="button"
+            class="cat-tab px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-bold transition-all bg-sky-50 text-sky-700 border-2 border-sky-200 hover:bg-sky-100">
+            介音 (3)
+          </button>
+          <button data-cat="final" type="button"
+            class="cat-tab px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-bold transition-all bg-amber-50 text-amber-800 border-2 border-amber-200 hover:bg-amber-100">
+            韻母 (13)
+          </button>
+        </div>
+      </div>
+
+      <!-- 注音按鈕網格 -->
+      <div id="symbolGrid" class="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-9 lg:grid-cols-11 gap-2 sm:gap-2.5">
+        <!-- 由 JS 動態生成 37 個注音卡片 -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 完成獎勵彈窗 -->
+  <div id="rewardModal" class="fixed inset-0 z-40 hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-[2.2rem] max-w-md w-full p-6 sm:p-8 text-center border-4 border-amber-300 shadow-2xl">
+      <div class="text-6xl mb-3 animate-bounce">🌟</div>
+      <h3 id="rewardTitle" class="text-2xl sm:text-3xl font-black text-amber-900 mb-2">
+        好棒喔！
+      </h3>
+      <p id="rewardSubtitle" class="text-base text-slate-600 font-bold mb-6">
+        你成功完成了「ㄅ」的標準筆順練習，獲得一顆小星星！
+      </p>
+      <div class="flex flex-col sm:flex-row gap-3 justify-center">
+        <button id="rewardRetryBtn" type="button"
+          class="btn-3d flex-1 py-3 px-5 rounded-2xl bg-amber-100 hover:bg-amber-200 text-amber-900 border-b-4 border-amber-300 font-bold text-base">
+          再練一次 ✏️
+        </button>
+        <button id="rewardNextBtn" type="button"
+          class="btn-3d flex-1 py-3 px-5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-500 hover:to-teal-500 text-white border-b-4 border-emerald-600 font-black text-base">
+          下一個注音 ➡️
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 重置進度確認彈窗 -->
+  <div id="resetModal" class="fixed inset-0 z-40 hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-[2rem] max-w-sm w-full p-6 text-center border-4 border-rose-200 shadow-2xl">
+      <div class="text-5xl mb-3">🔄</div>
+      <h3 class="text-xl font-black text-slate-800 mb-2">要重新開始嗎？</h3>
+      <p class="text-sm text-slate-600 font-medium mb-6">
+        這會清除目前收集到的所有小星星紀錄，讓你重新挑戰一次喔！
+      </p>
+      <div class="flex gap-3">
+        <button id="cancelResetBtn" type="button"
+          class="btn-3d flex-1 py-2.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 border-b-4 border-slate-300 font-bold">
+          先不要
+        </button>
+        <button id="confirmResetBtn" type="button"
+          class="btn-3d flex-1 py-2.5 px-4 rounded-2xl bg-rose-400 hover:bg-rose-500 text-white border-b-4 border-rose-600 font-bold">
+          確定重置
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * =========================================================================
+     * 1. 完整 37 個注音符號資料與台灣教育部標準筆順向量路徑 (0~100 座標系)
+     *    - 每個符號包含：char、cat、word、reading、emoji、ttsChar、ttsWord、strokes
+     *    - strokes: 陣列中每一項代表一筆，每筆由多個 [x, y] 路徑點組成以呈現自然弧度、轉折與鉤
+     * =========================================================================
+     */
+    const ZHUYIN_DATA = [
+      // ==================== 聲母 (21個) ====================
+      {
+        char: 'ㄅ', cat: 'initial', word: '爸爸', reading: 'ㄅㄚˋ ㄅㄚ˙', emoji: '👨',
+        ttsChar: '玻', ttsWord: '爸爸',
+        // 2畫：1.撇 2.橫折鉤
+        strokes: [
+          [[39, 19], [33, 30], [23, 41]],
+          [[33, 32], [54, 32], [75, 32], [73, 52], [68, 70], [60, 82], [49, 75]]
+        ]
+      },
+      {
+        char: 'ㄆ', cat: 'initial', word: '葡萄', reading: 'ㄆㄨˊ ㄊㄠˊ', emoji: '🍇',
+        ttsChar: '坡', ttsWord: '葡萄',
+        // 4畫：1.短撇 2.橫 3.長撇 4.捺
+        strokes: [
+          [[41, 17], [34, 29], [25, 42]],
+          [[35, 30], [55, 30], [75, 30]],
+          [[59, 31], [54, 51], [42, 68], [24, 81]],
+          [[35, 43], [48, 57], [63, 71], [79, 81]]
+        ]
+      },
+      {
+        char: 'ㄇ', cat: 'initial', word: '貓咪', reading: 'ㄇㄠ ㄇㄧ', emoji: '🐱',
+        ttsChar: '摸', ttsWord: '貓咪',
+        // 2畫：1.左豎 2.橫折鉤
+        strokes: [
+          [[24, 24], [24, 54], [24, 81]],
+          [[24, 25], [52, 25], [76, 25], [76, 56], [76, 81], [65, 74]]
+        ]
+      },
+      {
+        char: 'ㄈ', cat: 'initial', word: '飛機', reading: 'ㄈㄟ ㄐㄧ', emoji: '✈️',
+        ttsChar: '佛', ttsWord: '飛機',
+        // 2畫：1.橫 2.豎折
+        strokes: [
+          [[22, 23], [50, 23], [78, 23]],
+          [[26, 23], [26, 52], [26, 77], [54, 77], [79, 77]]
+        ]
+      },
+      {
+        char: 'ㄉ', cat: 'initial', word: '大象', reading: 'ㄉㄚˋ ㄒㄧㄤˋ', emoji: '🐘',
+        ttsChar: '得', ttsWord: '大象',
+        // 2畫：1.橫折鉤 2.撇（不出頭，同「刀」）
+        strokes: [
+          [[24, 26], [52, 26], [75, 26], [72, 52], [66, 72], [58, 82], [47, 74]],
+          [[48, 26], [44, 48], [35, 67], [22, 81]]
+        ]
+      },
+      {
+        char: 'ㄊ', cat: 'initial', word: '兔子', reading: 'ㄊㄨˋ ㄗ˙', emoji: '🐰',
+        ttsChar: '特', ttsWord: '兔子',
+        // 3畫：1.橫 2.豎撇折 3.點
+        strokes: [
+          [[22, 31], [50, 31], [78, 31]],
+          [[48, 17], [46, 40], [37, 62], [27, 76], [50, 71], [69, 67]],
+          [[62, 53], [70, 65], [78, 78]]
+        ]
+      },
+      {
+        char: 'ㄋ', cat: 'initial', word: '牛奶', reading: 'ㄋㄧㄡˊ ㄋㄞˇ', emoji: '🥛',
+        ttsChar: '訥', ttsWord: '牛奶',
+        // 1畫：橫折折折鉤
+        strokes: [
+          [[26, 23], [46, 23], [65, 23], [54, 37], [44, 47], [60, 47], [73, 47], [69, 67], [61, 82], [49, 74]]
+        ]
+      },
+      {
+        char: 'ㄌ', cat: 'initial', word: '老鼠', reading: 'ㄌㄠˇ ㄕㄨˇ', emoji: '🐭',
+        ttsChar: '勒', ttsWord: '老鼠',
+        // 2畫：1.橫折鉤 2.撇（上方出頭，同「力」）
+        strokes: [
+          [[24, 35], [50, 35], [74, 35], [71, 58], [65, 75], [57, 83], [46, 75]],
+          [[50, 16], [47, 42], [38, 64], [23, 81]]
+        ]
+      },
+      {
+        char: 'ㄍ', cat: 'initial', word: '狗狗', reading: 'ㄍㄡˇ ㄍㄡˇ', emoji: '🐶',
+        ttsChar: '哥', ttsWord: '狗狗',
+        // 1畫：撇點（上略窄下略展）
+        strokes: [
+          [[56, 18], [45, 34], [32, 49], [49, 64], [68, 82]]
+        ]
+      },
+      {
+        char: 'ㄎ', cat: 'initial', word: '恐龍', reading: 'ㄎㄨㄥˇ ㄌㄨㄥˊ', emoji: '🦖',
+        ttsChar: '科', ttsWord: '恐龍',
+        // 2畫：1.橫 2.豎折折鉤
+        strokes: [
+          [[20, 24], [50, 24], [80, 24]],
+          [[43, 24], [39, 38], [35, 48], [55, 48], [71, 48], [67, 68], [60, 82], [48, 74]]
+        ]
+      },
+      {
+        char: 'ㄏ', cat: 'initial', word: '蝴蝶', reading: 'ㄏㄨˊ ㄉㄧㄝˊ', emoji: '🦋',
+        ttsChar: '喝', ttsWord: '蝴蝶',
+        // 2畫：1.橫 2.撇
+        strokes: [
+          [[25, 24], [52, 24], [79, 24]],
+          [[28, 24], [27, 48], [23, 68], [17, 82]]
+        ]
+      },
+      {
+        char: 'ㄐ', cat: 'initial', word: '雞蛋', reading: 'ㄐㄧ ㄉㄢˋ', emoji: '🥚',
+        ttsChar: '基', ttsWord: '雞蛋',
+        // 2畫：1.豎提 2.右豎
+        strokes: [
+          [[28, 26], [28, 50], [28, 69], [44, 62], [58, 56]],
+          [[65, 18], [65, 52], [65, 84]]
+        ]
+      },
+      {
+        char: 'ㄑ', cat: 'initial', word: '氣球', reading: 'ㄑㄧˋ ㄑㄧㄡˊ', emoji: '🎈',
+        ttsChar: '欺', ttsWord: '氣球',
+        // 1畫：撇點（俐落大折角）
+        strokes: [
+          [[64, 18], [47, 35], [29, 50], [47, 66], [65, 82]]
+        ]
+      },
+      {
+        char: 'ㄒ', cat: 'initial', word: '西瓜', reading: 'ㄒㄧ ㄍㄨㄚ', emoji: '🍉',
+        ttsChar: '希', ttsWord: '西瓜',
+        // 2畫：1.橫 2.中豎
+        strokes: [
+          [[20, 26], [50, 26], [80, 26]],
+          [[50, 26], [50, 56], [50, 82]]
+        ]
+      },
+      {
+        char: 'ㄓ', cat: 'initial', word: '章魚', reading: 'ㄓㄤ ㄩˊ', emoji: '🐙',
+        ttsChar: '知', ttsWord: '章魚',
+        // 4畫：1.中豎 2.左豎折橫 3.右短豎 4.底長橫
+        strokes: [
+          [[50, 18], [50, 48], [50, 76]],
+          [[28, 38], [28, 57], [52, 57], [72, 57]],
+          [[72, 38], [72, 59]],
+          [[20, 76], [50, 76], [80, 76]]
+        ]
+      },
+      {
+        char: 'ㄔ', cat: 'initial', word: '車子', reading: 'ㄔㄜ ㄗ˙', emoji: '🚗',
+        ttsChar: '蚩', ttsWord: '車子',
+        // 3畫：1.上撇 2.中撇 3.豎
+        strokes: [
+          [[62, 18], [48, 30], [30, 40]],
+          [[66, 36], [48, 52], [27, 66]],
+          [[52, 50], [52, 68], [52, 84]]
+        ]
+      },
+      {
+        char: 'ㄕ', cat: 'initial', word: '獅子', reading: 'ㄕ ㄗ˙', emoji: '🦁',
+        ttsChar: '詩', ttsWord: '獅子',
+        // 3畫：1.橫折 2.中橫 3.豎撇
+        strokes: [
+          [[26, 22], [52, 22], [74, 22], [74, 42]],
+          [[28, 42], [52, 42], [74, 42]],
+          [[28, 22], [28, 48], [24, 68], [18, 82]]
+        ]
+      },
+      {
+        char: 'ㄖ', cat: 'initial', word: '熱狗', reading: 'ㄖㄜˋ ㄍㄡˇ', emoji: '🌭',
+        ttsChar: '日', ttsWord: '熱狗',
+        // 4畫：1.左豎 2.橫折 3.中橫 4.底橫
+        strokes: [
+          [[28, 21], [28, 52], [28, 79]],
+          [[28, 21], [52, 21], [72, 21], [72, 52], [72, 79]],
+          [[28, 49], [50, 49], [72, 49]],
+          [[28, 78], [50, 78], [72, 78]]
+        ]
+      },
+      {
+        char: 'ㄗ', cat: 'initial', word: '嘴巴', reading: 'ㄗㄨㄟˇ ㄅㄚ', emoji: '👄',
+        ttsChar: '資', ttsWord: '嘴巴',
+        // 2畫：1.橫折鉤 2.左豎
+        strokes: [
+          [[28, 24], [52, 24], [73, 24], [73, 55], [65, 62], [55, 55]],
+          [[30, 24], [30, 56], [30, 84]]
+        ]
+      },
+      {
+        char: 'ㄘ', cat: 'initial', word: '草莓', reading: 'ㄘㄠˇ ㄇㄟˊ', emoji: '🍓',
+        ttsChar: '雌', ttsWord: '草莓',
+        // 2畫：1.斜橫 2.豎彎鉤
+        strokes: [
+          [[21, 47], [50, 42], [78, 36]],
+          [[44, 18], [44, 52], [44, 70], [49, 77], [58, 79], [75, 79], [77, 67]]
+        ]
+      },
+      {
+        char: 'ㄙ', cat: 'initial', word: '松鼠', reading: 'ㄙㄨㄥ ㄕㄨˇ', emoji: '🐿️',
+        ttsChar: '思', ttsWord: '松鼠',
+        // 2畫：1.撇折 2.點
+        strokes: [
+          [[52, 19], [39, 46], [24, 74], [50, 71], [72, 68]],
+          [[62, 52], [70, 64], [78, 78]]
+        ]
+      },
+
+      // ==================== 介音 (3個) ====================
+      {
+        char: 'ㄧ', cat: 'medial', word: '衣服', reading: 'ㄧ ㄈㄨˊ', emoji: '👕',
+        ttsChar: '衣', ttsWord: '衣服',
+        // 1畫：橫向一畫由左至右
+        strokes: [
+          [[18, 50], [50, 50], [82, 50]]
+        ]
+      },
+      {
+        char: 'ㄨ', cat: 'medial', word: '烏龜', reading: 'ㄨ ㄍㄨㄟ', emoji: '🐢',
+        ttsChar: '烏', ttsWord: '烏龜',
+        // 2畫：1.撇 2.捺
+        strokes: [
+          [[69, 20], [54, 46], [38, 67], [22, 80]],
+          [[27, 23], [46, 47], [64, 67], [80, 80]]
+        ]
+      },
+      {
+        char: 'ㄩ', cat: 'medial', word: '雨傘', reading: 'ㄩˇ ㄙㄢˇ', emoji: '☂️',
+        ttsChar: '迂', ttsWord: '雨傘',
+        // 2畫：1.豎折 2.右豎
+        strokes: [
+          [[24, 24], [24, 54], [24, 76], [52, 76], [76, 76]],
+          [[76, 24], [76, 54], [76, 78]]
+        ]
+      },
+
+      // ==================== 韻母 (13個) ====================
+      {
+        char: 'ㄚ', cat: 'final', word: '阿公', reading: 'ㄚ ㄍㄨㄥ', emoji: '👴',
+        ttsChar: '啊', ttsWord: '阿公',
+        // 3畫：1.左短撇/點 2.右撇 3.中豎
+        strokes: [
+          [[28, 24], [38, 37], [46, 48]],
+          [[72, 22], [61, 36], [50, 49]],
+          [[50, 48], [50, 66], [50, 84]]
+        ]
+      },
+      {
+        char: 'ㄛ', cat: 'final', word: '喔喔叫', reading: 'ㄛ ㄛ ㄐㄧㄠˋ', emoji: '🐓',
+        ttsChar: '喔', ttsWord: '公雞喔喔叫',
+        // 2畫：1.橫 2.豎彎鉤
+        strokes: [
+          [[23, 25], [50, 25], [77, 25]],
+          [[44, 25], [44, 56], [44, 70], [49, 77], [58, 79], [76, 79], [78, 67]]
+        ]
+      },
+      {
+        char: 'ㄜ', cat: 'final', word: '白鵝', reading: 'ㄅㄞˊ ㄜˊ', emoji: '🦢',
+        ttsChar: '鵝', ttsWord: '白鵝',
+        // 3畫：1.上橫 2.豎彎鉤 3.中短橫
+        strokes: [
+          [[23, 24], [50, 24], [77, 24]],
+          [[44, 24], [44, 56], [44, 70], [49, 77], [58, 79], [76, 79], [78, 67]],
+          [[44, 48], [58, 48], [72, 48]]
+        ]
+      },
+      {
+        char: 'ㄝ', cat: 'final', word: '椰子', reading: 'ㄧㄝˊ ㄗ˙', emoji: '🥥',
+        ttsChar: '耶', ttsWord: '椰子',
+        // 3畫：1.橫折鉤 2.中豎 3.豎彎鉤
+        strokes: [
+          [[20, 48], [48, 41], [76, 34], [74, 56], [68, 62], [60, 55]],
+          [[52, 18], [52, 44], [52, 65]],
+          [[32, 28], [32, 56], [32, 70], [38, 78], [56, 79], [76, 79], [78, 66]]
+        ]
+      },
+      {
+        char: 'ㄞ', cat: 'final', word: '愛心', reading: 'ㄞˋ ㄒㄧㄣ', emoji: '❤️',
+        ttsChar: '哀', ttsWord: '愛心',
+        // 3畫：1.上橫 2.左撇 3.右豎彎
+        strokes: [
+          [[21, 26], [50, 26], [79, 26]],
+          [[42, 26], [39, 53], [32, 69], [23, 81]],
+          [[58, 26], [58, 62], [58, 74], [64, 79], [77, 79]]
+        ]
+      },
+      {
+        char: 'ㄟ', cat: 'final', word: '杯子', reading: 'ㄅㄟ ㄗ˙', emoji: '🥤',
+        ttsChar: '欸', ttsWord: '杯子',
+        // 1畫：斜提再長捺
+        strokes: [
+          [[18, 48], [28, 41], [37, 35], [52, 49], [66, 63], [80, 73]]
+        ]
+      },
+      {
+        char: 'ㄠ', cat: 'final', word: '蛋糕', reading: 'ㄉㄢˋ ㄍㄠ', emoji: '🎂',
+        ttsChar: '熬', ttsWord: '蛋糕',
+        // 3畫：1.上撇折 2.下撇折 3.點
+        strokes: [
+          [[52, 18], [41, 32], [31, 43], [46, 41], [59, 39]],
+          [[63, 31], [48, 53], [30, 74], [52, 71], [71, 68]],
+          [[64, 56], [71, 66], [78, 78]]
+        ]
+      },
+      {
+        char: 'ㄡ', cat: 'final', word: '海鷗', reading: 'ㄏㄞˇ ㄡ', emoji: '🕊️',
+        ttsChar: '歐', ttsWord: '海鷗',
+        // 2畫：1.橫撇 2.捺
+        strokes: [
+          [[26, 26], [49, 26], [70, 26], [58, 50], [42, 68], [22, 80]],
+          [[32, 36], [48, 54], [64, 70], [80, 80]]
+        ]
+      },
+      {
+        char: 'ㄢ', cat: 'final', word: '安全帽', reading: 'ㄢ ㄑㄩㄢˊ ㄇㄠˋ', emoji: '⛑️',
+        ttsChar: '安', ttsWord: '安全帽',
+        // 2畫：1.左豎折 2.右豎鉤
+        strokes: [
+          [[28, 24], [28, 51], [50, 51], [71, 51]],
+          [[71, 24], [70, 56], [66, 75], [59, 82], [49, 75]]
+        ]
+      },
+      {
+        char: 'ㄣ', cat: 'final', word: '森林', reading: 'ㄙㄣ ㄌㄧㄣˊ', emoji: '🌲',
+        ttsChar: '恩', ttsWord: '森林',
+        // 1畫：豎折折
+        strokes: [
+          [[35, 20], [32, 36], [29, 50], [50, 50], [70, 50], [68, 67], [65, 82]]
+        ]
+      },
+      {
+        char: 'ㄤ', cat: 'final', word: '糖果', reading: 'ㄊㄤˊ ㄍㄨㄛˇ', emoji: '🍬',
+        ttsChar: '昂', ttsWord: '糖果',
+        // 2畫：1.撇 2.橫折彎鉤
+        strokes: [
+          [[46, 18], [43, 47], [34, 67], [20, 82]],
+          [[22, 36], [44, 36], [62, 36], [58, 60], [56, 72], [62, 78], [78, 78], [80, 67]]
+        ]
+      },
+      {
+        char: 'ㄥ', cat: 'final', word: '蜜蜂', reading: 'ㄇㄧˋ ㄈㄥ', emoji: '🐝',
+        ttsChar: '亨', ttsWord: '蜜蜂',
+        // 1畫：撇折
+        strokes: [
+          [[54, 20], [41, 46], [24, 74], [52, 72], [77, 69]]
+        ]
+      },
+      {
+        char: 'ㄦ', cat: 'final', word: '耳朵', reading: 'ㄦˇ ㄉㄨㄛ˙', emoji: '👂',
+        ttsChar: '兒', ttsWord: '耳朵',
+        // 2畫：1.撇 2.豎彎鉤
+        strokes: [
+          [[38, 22], [36, 51], [29, 69], [18, 82]],
+          [[58, 20], [58, 54], [58, 70], [63, 77], [78, 78], [80, 66]]
+        ]
+      }
+    ];
+
+    const CATEGORY_META = {
+      initial: { label: '聲母', badgeClass: 'bg-rose-100 text-rose-700 border-rose-200', cardBg: 'bg-rose-50/75 border-rose-200 hover:bg-rose-100/80 text-rose-900' },
+      medial:  { label: '介音', badgeClass: 'bg-sky-100 text-sky-700 border-sky-200',    cardBg: 'bg-sky-50/75 border-sky-200 hover:bg-sky-100/80 text-sky-900' },
+      final:   { label: '韻母', badgeClass: 'bg-amber-100 text-amber-800 border-amber-200', cardBg: 'bg-amber-50/75 border-amber-200 hover:bg-amber-100/80 text-amber-900' },
+    };
+
+    const BRUSH_COLORS = [
+      { id: 'strawberry', name: '草莓紅', hex: '#F43F5E', isRainbow: false },
+      { id: 'sky',        name: '天空藍', hex: '#0EA5E9', isRainbow: false },
+      { id: 'grass',      name: '青草綠', hex: '#10B981', isRainbow: false },
+      { id: 'orange',     name: '橘子澄', hex: '#F97316', isRainbow: false },
+      { id: 'grape',      name: '葡萄紫', hex: '#8B5CF6', isRainbow: false },
+      { id: 'charcoal',   name: '炭筆黑', hex: '#334155', isRainbow: false },
+      { id: 'rainbow',    name: '彩虹筆', hex: 'rainbow', isRainbow: true  },
+    ];
+
+    const BRUSH_SIZES = {
+      small:  0.028,
+      medium: 0.048,
+      large:  0.070,
+    };
+
+    const PRAISE_MESSAGES = [
+      '好棒喔！筆順完全正確！',
+      '太厲害了！寫得又端正又漂亮！',
+      '你真是小小注音達人！',
+      '拍拍手！每一筆都好認真！',
+      '哇～進步神速，給你一個大讚！',
+    ];
+
+    const STORAGE_KEY = 'zhuyin_practice_progress_v2';
+
+    /**
+     * =========================================================================
+     * 2. 應用程式狀態管理
+     * =========================================================================
+     */
+    const state = {
+      currentIndex: 0,
+      activeCategory: 'all',
+      completedSet: new Set(),
+
+      // 模式：'guide' (筆順引導) | 'trace' (完整描線) | 'dashed' (虛線輪廓) | 'memory' (挑戰默寫)
+      practiceMode: 'guide',
+      showStrokeHints: true,
+      templateOpacity: 0.28,
+
+      // 畫筆設定
+      brushColor: BRUSH_COLORS[0],
+      brushSizeKey: 'medium',
+      rainbowHue: 0,
+
+      // 自由繪圖筆跡 (trace / dashed / memory 模式使用)
+      freeStrokes: [],
+
+      // 筆順引導模式狀態
+      guidedStep: 0,           // 目前等待描寫的第幾筆 (0-based)
+      guidedCompleted: [],     // 已完成筆畫紀錄 [{ strokeIdx, color, isRainbow, startHue, sizeRatio }]
+      isDrawing: false,
+      currentPointerStroke: null,
+
+      // 筆順動畫播放器狀態
+      isAnimating: false,
+      animSpeed: 'slow',       // 'slow' | 'normal'
+      animStrokeIdx: 0,
+      animProgress: 0,         // 0..1 當前筆劃進度
+      animPauseTimer: 0,
+      animLastTime: 0,
+
+      // 呼吸圓點動畫時間戳
+      pulsePhase: 0,
+    };
+
+    // DOM 元素參照
+    const canvas = document.getElementById('tracingCanvas');
+    const ctx = canvas.getContext('2d');
+    const confettiCanvas = document.getElementById('confettiCanvas');
+    const confettiCtx = confettiCanvas.getContext('2d');
+
+    const progressText = document.getElementById('progressText');
+    const progressBar = document.getElementById('progressBar');
+    const currentCategoryBadge = document.getElementById('currentCategoryBadge');
+    const currentSymbolHeader = document.getElementById('currentSymbolHeader');
+    const strokeCountBadge = document.getElementById('strokeCountBadge');
+    const currentStarStatus = document.getElementById('currentStarStatus');
+    const strokeProgressPill = document.getElementById('strokeProgressPill');
+    const strokeProgressText = document.getElementById('strokeProgressText');
+
+    const wordEmoji = document.getElementById('wordEmoji');
+    const wordText = document.getElementById('wordText');
+    const pinyinHint = document.getElementById('pinyinHint');
+    const symbolGrid = document.getElementById('symbolGrid');
+    const colorPalette = document.getElementById('colorPalette');
+    const currentColorName = document.getElementById('currentColorName');
+    const opacitySlider = document.getElementById('opacitySlider');
+    const opacityControlWrap = document.getElementById('opacityControlWrap');
+    const showArrowsToggle = document.getElementById('showArrowsToggle');
+    const canvasToast = document.getElementById('canvasToast');
+
+    const playAnimBtn = document.getElementById('playAnimBtn');
+    const playAnimIcon = document.getElementById('playAnimIcon');
+    const playAnimText = document.getElementById('playAnimText');
+    const speedSlowBtn = document.getElementById('speedSlowBtn');
+    const speedNormalBtn = document.getElementById('speedNormalBtn');
+
+    const rewardModal = document.getElementById('rewardModal');
+    const rewardTitle = document.getElementById('rewardTitle');
+    const rewardSubtitle = document.getElementById('rewardSubtitle');
+    const resetModal = document.getElementById('resetModal');
+
+    let toastTimer = null;
+    let audioCtx = null;
+
+    /**
+     * =========================================================================
+     * 3. 幾何路徑工具：重採樣、距離計算與筆順友善判定
+     * =========================================================================
+     */
+
+    /**
+     * 將 0~100 座標系的筆畫點列等距重採樣，讓動畫與判定更均勻平滑
+     */
+    function resampleStroke(rawPoints, step = 2.0) {
+      if (!rawPoints || rawPoints.length === 0) return [];
+      if (rawPoints.length === 1) return [{ x: rawPoints[0][0], y: rawPoints[0][1] }];
+
+      const pts = rawPoints.map(p => ({ x: p[0], y: p[1] }));
+      const result = [pts[0]];
+      let accum = 0;
+
+      for (let i = 1; i < pts.length; i++) {
+        let p0 = pts[i - 1];
+        let p1 = pts[i];
+        let segLen = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+        if (segLen === 0) continue;
+
+        let d = step - accum;
+        while (d <= segLen) {
+          const t = d / segLen;
+          result.push({
+            x: p0.x + (p1.x - p0.x) * t,
+            y: p0.y + (p1.y - p0.y) * t
+          });
+          d += step;
+        }
+        accum = segLen - (d - step);
+      }
+
+      const last = pts[pts.length - 1];
+      const resLast = result[result.length - 1];
+      if (Math.hypot(last.x - resLast.x, last.y - resLast.y) > 0.5) {
+        result.push(last);
+      }
+      return result;
+    }
+
+    /**
+     * 計算點列總長度
+     */
+    function getPathLength(pts) {
+      let total = 0;
+      for (let i = 1; i < pts.length; i++) {
+        total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+      }
+      return total;
+    }
+
+    /**
+     * 幼兒友善高容錯筆順判定演算法
+     * @param {Array<{x:number, y:number}>} userPts01 - 使用者筆畫（0..1 正規化座標）
+     * @param {Array<[number, number]>} targetRaw100 - 目標標準筆畫（0..100 座標）
+     * @returns {{ passed: boolean, reason: string }}
+     */
+    function evaluateGuidedStroke(userPts01, targetRaw100) {
+      if (!userPts01 || userPts01.length < 2) {
+        return { passed: false, reason: '請沿著虛線慢慢畫完這一筆喔！' };
+      }
+
+      // 將使用者點轉換為 0..100 座標系
+      const userPts = userPts01.map(p => ({ x: p.x * 100, y: p.y * 100 }));
+      const targetSampled = resampleStroke(targetRaw100, 2.5);
+
+      const targetStart = targetSampled[0];
+      const targetEnd = targetSampled[targetSampled.length - 1];
+      const userStart = userPts[0];
+      const userEnd = userPts[userPts.length - 1];
+
+      const startDist = Math.hypot(userStart.x - targetStart.x, userStart.y - targetStart.y);
+      const endDist = Math.hypot(userEnd.x - targetEnd.x, userEnd.y - targetEnd.y);
+
+      // 1. 檢查是否從正確起點附近開始（容許半徑 24 單位，對幼童手指很友善）
+      if (startDist > 24) {
+        // 檢查是否畫反方向
+        const reverseStartDist = Math.hypot(userStart.x - targetEnd.x, userStart.y - targetEnd.y);
+        if (reverseStartDist < 22) {
+          return { passed: false, reason: '方向相反囉！要從閃亮亮的數字圓點開始畫喔！' };
+        }
+        return { passed: false, reason: '要從閃亮亮的數字圓點開始起筆喔！' };
+      }
+
+      // 2. 檢查目標筆畫覆蓋率（每個目標樣本點距離使用者筆跡 <= 17 單位即算覆蓋）
+      const tolerance = 17;
+      let coveredCount = 0;
+      for (const tp of targetSampled) {
+        let minD = Infinity;
+        for (const up of userPts) {
+          const d = Math.hypot(tp.x - up.x, tp.y - up.y);
+          if (d < minD) minD = d;
+        }
+        if (minD <= tolerance) coveredCount++;
+      }
+      const coverage = coveredCount / targetSampled.length;
+
+      // 3. 檢查使用者是否偏離太遠（避免亂畫整張畫布作弊）
+      let onTrackCount = 0;
+      for (const up of userPts) {
+        let minD = Infinity;
+        for (const tp of targetSampled) {
+          const d = Math.hypot(up.x - tp.x, up.y - tp.y);
+          if (d < minD) minD = d;
+        }
+        if (minD <= 24) onTrackCount++;
+      }
+      const onTrackRatio = onTrackCount / userPts.length;
+
+      // 4. 綜合判定（友善高容錯）
+      if (coverage >= 0.62 && endDist <= 28 && onTrackRatio >= 0.65) {
+        return { passed: true, reason: '' };
+      }
+
+      if (coverage < 0.62 || endDist > 28) {
+        return { passed: false, reason: '快完成了！試著沿著箭頭畫到終點喔！' };
+      }
+      return { passed: false, reason: '再慢慢沿著虛線描一次看看！' };
+    }
+
+    /**
+     * =========================================================================
+     * 4. 進度儲存 (localStorage)
+     * =========================================================================
+     */
+    function loadProgress() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            state.completedSet = new Set(parsed);
+          }
+        }
+      } catch (err) {
+        console.warn('讀取進度失敗：', err);
+      }
+    }
+
+    function saveProgress() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(state.completedSet)));
+      } catch (err) {
+        console.warn('儲存進度失敗：', err);
+      }
+    }
+
+    /**
+     * =========================================================================
+     * 5. Web Audio API 清脆音效合成（無需外部音檔）
+     * =========================================================================
+     */
+    function getAudioContext() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          audioCtx = new AudioContextClass();
+        }
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    /** 單一筆畫寫對時的清脆「叮！」音效 */
+    function playStrokeDing(stepIdx = 0) {
+      try {
+        const ac = getAudioContext();
+        if (!ac) return;
+        const now = ac.currentTime;
+        // 隨著筆劃遞增音高，更有成就感
+        const scale = [587.33, 659.25, 783.99, 880.00, 1046.50];
+        const freq = scale[stepIdx % scale.length];
+
+        const osc = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.02, now + 0.15);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.exponentialRampToValueAtTime(0.24, now + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+        osc.connect(gain);
+        gain.connect(ac.destination);
+        osc.start(now);
+        osc.stop(now + 0.38);
+      } catch (e) {}
+    }
+
+    /** 全部筆畫完成時的歡樂上升和弦音效 */
+    function playRewardSound() {
+      try {
+        const ac = getAudioContext();
+        if (!ac) return;
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        const now = ac.currentTime;
+
+        notes.forEach((freq, idx) => {
+          const osc = ac.createOscillator();
+          const gain = ac.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.085);
+
+          gain.gain.setValueAtTime(0.001, now + idx * 0.085);
+          gain.gain.exponentialRampToValueAtTime(0.22, now + idx * 0.085 + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.085 + 0.42);
+
+          osc.connect(gain);
+          gain.connect(ac.destination);
+          osc.start(now + idx * 0.085);
+          osc.stop(now + idx * 0.085 + 0.45);
+        });
+      } catch (e) {}
+    }
+
+    /** 輕柔按鈕點擊音 */
+    function playSoftPop() {
+      try {
+        const ac = getAudioContext();
+        if (!ac) return;
+        const now = ac.currentTime;
+        const osc = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(520, now);
+        osc.frequency.exponentialRampToValueAtTime(700, now + 0.055);
+        gain.gain.setValueAtTime(0.07, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+        osc.connect(gain);
+        gain.connect(ac.destination);
+        osc.start(now);
+        osc.stop(now + 0.07);
+      } catch (e) {}
+    }
+
+    /**
+     * =========================================================================
+     * 6. 標準國語語音朗讀 (zh-TW)
+     * =========================================================================
+     */
+    function speakText(text, iconEl = null) {
+      if (!('speechSynthesis' in window)) {
+        showToast('目前的瀏覽器不支援語音朗讀喔！');
+        return;
+      }
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'zh-TW';
+        utterance.rate = 0.85;
+        utterance.pitch = 1.08;
+
+        const voices = window.speechSynthesis.getVoices();
+        const twVoice = voices.find(v => v.lang === 'zh-TW' || v.lang === 'zh_TW')
+                     || voices.find(v => v.lang.startsWith('zh'));
+        if (twVoice) utterance.voice = twVoice;
+
+        if (iconEl) {
+          utterance.onstart = () => iconEl.classList.add('speaking-pulse');
+          utterance.onend = () => iconEl.classList.remove('speaking-pulse');
+          utterance.onerror = () => iconEl.classList.remove('speaking-pulse');
+        }
+        window.speechSynthesis.speak(utterance);
+      } catch (err) {
+        console.warn('語音合成失敗：', err);
+      }
+    }
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    }
+
+    /**
+     * =========================================================================
+     * 7. 畫布繪製核心（田字格、向量筆順底字、箭頭、呼吸圓點、平滑曲線）
+     * =========================================================================
+     */
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const size = Math.floor(rect.width);
+
+      canvas.width = size * dpr;
+      canvas.height = size * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      confettiCanvas.width = window.innerWidth;
+      confettiCanvas.height = window.innerHeight;
+    }
+
+    /** 將 0..100 座標轉換為畫布像素座標 */
+    function toPx(pt, size) {
+      return {
+        x: (pt[0] / 100) * size,
+        y: (pt[1] / 100) * size
+      };
+    }
+
+    /** 繪製柔和清晰的標準田字格 */
+    function drawTianzige(size) {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, size, size);
+
+      const pad = size * 0.055;
+      const box = size - pad * 2;
+
+      ctx.save();
+      // 極淡對角米字輔助線
+      ctx.strokeStyle = '#FEF3C7';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.moveTo(pad, pad);
+      ctx.lineTo(pad + box, pad + box);
+      ctx.moveTo(pad + box, pad);
+      ctx.lineTo(pad, pad + box);
+      ctx.stroke();
+
+      // 柔和虛線十字
+      ctx.strokeStyle = '#FDBA74';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 7]);
+      ctx.beginPath();
+      ctx.moveTo(size / 2, pad);
+      ctx.lineTo(size / 2, size - pad);
+      ctx.moveTo(pad, size / 2);
+      ctx.lineTo(size - pad, size / 2);
+      ctx.stroke();
+
+      // 清晰外框
+      ctx.setLineDash([]);
+      ctx.strokeStyle = '#FB923C';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(pad, pad, box, box);
+      ctx.restore();
+    }
+
+    /**
+     * 使用二次貝茲曲線平滑繪製一條向量筆畫（支援指定繪製比例 progress 0..1）
+     */
+    function drawVectorStroke(rawPoints, size, options = {}) {
+      const {
+        color = '#CBD5E1',
+        lineWidth = size * 0.055,
+        dashed = false,
+        dashPattern = [10, 8],
+        progress = 1,
+        isRainbow = false,
+        startHue = 0,
+        glow = false
+      } = options;
+
+      const sampled = resampleStroke(rawPoints, 1.5);
+      if (sampled.length === 0) return null;
+
+      const maxIdx = Math.max(1, Math.floor((sampled.length - 1) * Math.min(1, Math.max(0, progress))));
+      const subPts = sampled.slice(0, maxIdx + 1).map(p => ({
+        x: (p.x / 100) * size,
+        y: (p.y / 100) * size
+      }));
+
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = lineWidth;
+
+      if (dashed) {
+        ctx.setLineDash(dashPattern);
+      }
+      if (glow) {
+        ctx.shadowColor = 'rgba(249, 115, 22, 0.35)';
+        ctx.shadowBlur = 10;
+      }
+
+      if (!isRainbow) {
+        ctx.strokeStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(subPts[0].x, subPts[0].y);
+        for (let i = 1; i < subPts.length - 1; i++) {
+          const xc = (subPts[i].x + subPts[i + 1].x) / 2;
+          const yc = (subPts[i].y + subPts[i + 1].y) / 2;
+          ctx.quadraticCurveTo(subPts[i].x, subPts[i].y, xc, yc);
+        }
+        const last = subPts[subPts.length - 1];
+        ctx.lineTo(last.x, last.y);
+        ctx.stroke();
+      } else {
+        let prev = subPts[0];
+        for (let i = 1; i < subPts.length; i++) {
+          const curr = subPts[i];
+          const hue = (startHue + i * 3.5) % 360;
+          ctx.strokeStyle = `hsl(${hue}, 90%, 55%)`;
+          ctx.beginPath();
+          ctx.moveTo(prev.x, prev.y);
+          ctx.lineTo(curr.x, curr.y);
+          ctx.stroke();
+          prev = curr;
+        }
+      }
+
+      ctx.restore();
+      return subPts[subPts.length - 1];
+    }
+
+    /**
+     * 在筆畫路徑上繪製行進方向箭頭
+     */
+    function drawDirectionArrows(rawPoints, size, color = '#EA580C', isHighlight = false) {
+      const sampled = resampleStroke(rawPoints, 2.0);
+      if (sampled.length < 4) return;
+
+      const totalLen = getPathLength(sampled);
+      // 根據筆畫長度決定箭頭位置（短筆放 1 個，長筆放 2~3 個）
+      const fractions = totalLen > 55 ? [0.35, 0.72] : [0.55];
+
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2;
+
+      fractions.forEach(frac => {
+        const idx = Math.min(sampled.length - 2, Math.max(1, Math.floor(sampled.length * frac)));
+        const p1 = sampled[idx - 1];
+        const p2 = sampled[idx + 1];
+        const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+
+        const cx = (sampled[idx].x / 100) * size;
+        const cy = (sampled[idx].y / 100) * size;
+        const arrowSize = isHighlight ? size * 0.032 : size * 0.023;
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.moveTo(arrowSize, 0);
+        ctx.lineTo(-arrowSize * 0.75, -arrowSize * 0.65);
+        ctx.lineTo(-arrowSize * 0.35, 0);
+        ctx.lineTo(-arrowSize * 0.75, arrowSize * 0.65);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fill();
+        ctx.restore();
+      });
+
+      ctx.restore();
+    }
+
+    /**
+     * 繪製起點數字圓圈（支援呼吸閃動效果）
+     */
+    function drawStartNumberBadge(rawPoints, num, size, options = {}) {
+      const {
+        pulse = false,
+        active = false,
+        bgColor = '#FB923C',
+        textColor = '#FFFFFF'
+      } = options;
+
+      const start = toPx(rawPoints[0], size);
+      const baseR = active ? size * 0.044 : size * 0.032;
+      const pulseScale = pulse ? (1 + Math.sin(state.pulsePhase) * 0.16) : 1;
+      const r = baseR * pulseScale;
+
+      ctx.save();
+
+      // 呼吸外圈光暈
+      if (pulse) {
+        const haloR = baseR * (1.45 + Math.sin(state.pulsePhase) * 0.35);
+        ctx.fillStyle = 'rgba(249, 115, 22, 0.25)';
+        ctx.beginPath();
+        ctx.arc(start.x, start.y, haloR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 主圓點
+      ctx.fillStyle = bgColor;
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = Math.max(2, size * 0.007);
+      ctx.beginPath();
+      ctx.arc(start.x, start.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // 數字文字
+      ctx.fillStyle = textColor;
+      ctx.font = `900 ${Math.round(r * 1.25)}px "Zen Maru Gothic", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(num), start.x, start.y + 1);
+
+      ctx.restore();
+    }
+
+    /**
+     * 繪製使用者自由手寫的單一筆跡（二次貝茲曲線抗鋸齒平滑）
+     */
+    function drawUserStroke(stroke, size) {
+      const pts = stroke.points;
+      if (!pts || pts.length === 0) return;
+      const lineWidth = stroke.sizeRatio * size;
+
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = lineWidth;
+
+      if (pts.length === 1) {
+        ctx.fillStyle = stroke.isRainbow ? `hsl(${stroke.startHue}, 90%, 55%)` : stroke.color;
+        ctx.beginPath();
+        ctx.arc(pts[0].x * size, pts[0].y * size, lineWidth / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        return;
+      }
+
+      if (!stroke.isRainbow) {
+        ctx.strokeStyle = stroke.color;
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x * size, pts[0].y * size);
+        for (let i = 1; i < pts.length - 1; i++) {
+          const xc = ((pts[i].x + pts[i + 1].x) / 2) * size;
+          const yc = ((pts[i].y + pts[i + 1].y) / 2) * size;
+          ctx.quadraticCurveTo(pts[i].x * size, pts[i].y * size, xc, yc);
+        }
+        const last = pts[pts.length - 1];
+        ctx.lineTo(last.x * size, last.y * size);
+        ctx.stroke();
+      } else {
+        let prevX = pts[0].x * size;
+        let prevY = pts[0].y * size;
+        for (let i = 1; i < pts.length; i++) {
+          const currX = pts[i].x * size;
+          const currY = pts[i].y * size;
+          const midX = (prevX + currX) / 2;
+          const midY = (prevY + currY) / 2;
+          const hue = (stroke.startHue + i * 4.5) % 360;
+          ctx.strokeStyle = `hsl(${hue}, 90%, 55%)`;
+          ctx.beginPath();
+          ctx.moveTo(prevX, prevY);
+          ctx.quadraticCurveTo(prevX, prevY, midX, midY);
+          ctx.lineTo(currX, currY);
+          ctx.stroke();
+          prevX = currX;
+          prevY = currY;
+        }
+      }
+      ctx.restore();
+    }
+
+    /**
+     * 主渲染迴圈（支援筆順動畫與起點呼吸動畫）
+     */
+    function renderFrame(timestamp) {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const size = rect.width;
+      const item = ZHUYIN_DATA[state.currentIndex];
+      const strokes = item.strokes;
+
+      // 更新呼吸節奏
+      state.pulsePhase = (timestamp || 0) * 0.0055;
+
+      // 1. 畫田字格
+      drawTianzige(size);
+
+      // 2. 若正在播放「看筆順」動畫
+      if (state.isAnimating) {
+        updateStrokeAnimation(timestamp, strokes.length);
+
+        // 先畫極淡底稿
+        strokes.forEach(s => {
+          drawVectorStroke(s, size, {
+            color: 'rgba(148, 163, 184, 0.22)',
+            lineWidth: size * 0.056
+          });
+        });
+
+        // 已示範完成的筆畫
+        for (let i = 0; i < state.animStrokeIdx; i++) {
+          drawVectorStroke(strokes[i], size, {
+            color: '#8B5CF6',
+            lineWidth: size * 0.058
+          });
+          drawStartNumberBadge(strokes[i], i + 1, size, {
+            active: false,
+            bgColor: '#A78BFA'
+          });
+        }
+
+        // 正在示範中的筆畫 + 發光筆頭
+        if (state.animStrokeIdx < strokes.length) {
+          const currStroke = strokes[state.animStrokeIdx];
+          drawDirectionArrows(currStroke, size, '#C4B5FD', false);
+
+          const tip = drawVectorStroke(currStroke, size, {
+            color: '#F97316',
+            lineWidth: size * 0.062,
+            progress: state.animProgress,
+            glow: true
+          });
+
+          drawStartNumberBadge(currStroke, state.animStrokeIdx + 1, size, {
+            active: true,
+            bgColor: '#F97316'
+          });
+
+          // 發光移動筆頭
+          if (tip) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(251, 146, 60, 0.35)';
+            ctx.beginPath();
+            ctx.arc(tip.x, tip.y, size * 0.055, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#FFF7ED';
+            ctx.strokeStyle = '#EA580C';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(tip.x, tip.y, size * 0.025, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+      } else {
+        // 3. 一般練習模式繪製
+        const baseWidth = size * 0.058;
+
+        if (state.practiceMode === 'guide') {
+          // 筆順引導模式：淡色完整底稿 + 已完成上色筆畫 + 當前高亮虛線與呼吸起點
+          strokes.forEach(s => {
+            drawVectorStroke(s, size, {
+              color: `rgba(148, 163, 184, ${state.templateOpacity})`,
+              lineWidth: baseWidth
+            });
+          });
+
+          // 已完成的筆畫（平滑補齊上色）
+          state.guidedCompleted.forEach(rec => {
+            drawVectorStroke(strokes[rec.strokeIdx], size, {
+              color: rec.color,
+              isRainbow: rec.isRainbow,
+              startHue: rec.startHue,
+              lineWidth: rec.sizeRatio * size
+            });
+          });
+
+          // 當前該寫的那一筆（高亮虛線 + 方向箭頭 + 呼吸數字圓點）
+          if (state.guidedStep < strokes.length) {
+            const target = strokes[state.guidedStep];
+            drawVectorStroke(target, size, {
+              color: '#FB923C',
+              lineWidth: size * 0.036,
+              dashed: true,
+              dashPattern: [size * 0.028, size * 0.024],
+              glow: true
+            });
+            if (state.showStrokeHints) {
+              drawDirectionArrows(target, size, '#EA580C', true);
+            }
+            drawStartNumberBadge(target, state.guidedStep + 1, size, {
+              pulse: true,
+              active: true,
+              bgColor: '#F97316'
+            });
+          }
+
+          // 使用者正在拖曳中的即時筆跡
+          if (state.currentPointerStroke) {
+            drawUserStroke(state.currentPointerStroke, size);
+          }
+
+        } else if (state.practiceMode === 'trace') {
+          // 完整描線模式
+          strokes.forEach(s => {
+            drawVectorStroke(s, size, {
+              color: `rgba(148, 163, 184, ${state.templateOpacity})`,
+              lineWidth: baseWidth
+            });
+          });
+
+          if (state.showStrokeHints) {
+            strokes.forEach((s, idx) => {
+              drawDirectionArrows(s, size, 'rgba(234, 88, 12, 0.72)', false);
+              drawStartNumberBadge(s, idx + 1, size, {
+                active: false,
+                bgColor: 'rgba(249, 115, 22, 0.85)'
+              });
+            });
+          }
+
+          state.freeStrokes.forEach(st => drawUserStroke(st, size));
+          if (state.currentPointerStroke) drawUserStroke(state.currentPointerStroke, size);
+
+        } else if (state.practiceMode === 'dashed') {
+          // 虛線輪廓模式
+          strokes.forEach(s => {
+            drawVectorStroke(s, size, {
+              color: `rgba(100, 116, 139, ${Math.min(state.templateOpacity + 0.25, 0.85)})`,
+              lineWidth: size * 0.028,
+              dashed: true,
+              dashPattern: [size * 0.026, size * 0.022]
+            });
+          });
+
+          if (state.showStrokeHints) {
+            strokes.forEach((s, idx) => {
+              drawDirectionArrows(s, size, 'rgba(14, 165, 233, 0.8)', false);
+              drawStartNumberBadge(s, idx + 1, size, {
+                active: false,
+                bgColor: 'rgba(14, 165, 233, 0.85)'
+              });
+            });
+          }
+
+          state.freeStrokes.forEach(st => drawUserStroke(st, size));
+          if (state.currentPointerStroke) drawUserStroke(state.currentPointerStroke, size);
+
+        } else if (state.practiceMode === 'memory') {
+          // 挑戰默寫模式（隱藏底字）
+          state.freeStrokes.forEach(st => drawUserStroke(st, size));
+          if (state.currentPointerStroke) drawUserStroke(state.currentPointerStroke, size);
+        }
+      }
+
+      requestAnimationFrame(renderFrame);
+    }
+
+    /**
+     * =========================================================================
+     * 8. 筆順動畫播放器控制邏輯
+     * =========================================================================
+     */
+    function startStrokeAnimation() {
+      const item = ZHUYIN_DATA[state.currentIndex];
+      state.isAnimating = true;
+      state.animStrokeIdx = 0;
+      state.animProgress = 0;
+      state.animPauseTimer = 0;
+      state.animLastTime = performance.now();
+
+      playAnimIcon.textContent = '⏹';
+      playAnimText.textContent = '停止示範';
+      playAnimBtn.classList.remove('from-violet-400', 'to-purple-500');
+      playAnimBtn.classList.add('from-rose-400', 'to-pink-500', 'border-rose-700');
+
+      updateStrokeProgressUI(`示範第 1 畫 / 共 ${item.strokes.length} 畫`);
+    }
+
+    function stopStrokeAnimation() {
+      state.isAnimating = false;
+      playAnimIcon.textContent = '▶';
+      playAnimText.textContent = '看筆順';
+      playAnimBtn.classList.remove('from-rose-400', 'to-pink-500', 'border-rose-700');
+      playAnimBtn.classList.add('from-violet-400', 'to-purple-500');
+      updateStrokeProgressUI();
+    }
+
+    function updateStrokeAnimation(now, totalStrokes) {
+      if (!state.animLastTime) state.animLastTime = now;
+      const dt = Math.min(0.08, (now - state.animLastTime) / 1000);
+      state.animLastTime = now;
+
+      // 慢速約 1.45 秒一筆，正常約 0.8 秒一筆
+      const speed = state.animSpeed === 'slow' ? 0.68 : 1.28;
+
+      if (state.animPauseTimer > 0) {
+        state.animPauseTimer -= dt;
+        if (state.animPauseTimer <= 0) {
+          state.animStrokeIdx++;
+          state.animProgress = 0;
+          if (state.animStrokeIdx >= totalStrokes) {
+            stopStrokeAnimation();
+          } else {
+            updateStrokeProgressUI(`示範第 ${state.animStrokeIdx + 1} 畫 / 共 ${totalStrokes} 畫`);
+          }
+        }
+        return;
+      }
+
+      state.animProgress += dt * speed;
+      if (state.animProgress >= 1) {
+        state.animProgress = 1;
+        state.animPauseTimer = state.animSpeed === 'slow' ? 0.48 : 0.28;
+      }
+    }
+
+    /**
+     * =========================================================================
+     * 9. Pointer Events 觸控與滑鼠書寫互動
+     * =========================================================================
+     */
+    function getNormalizedPoint(e) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)),
+        y: Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height)),
+      };
+    }
+
+    function handlePointerDown(e) {
+      e.preventDefault();
+      if (state.isAnimating) {
+        stopStrokeAnimation();
+      }
+
+      const item = ZHUYIN_DATA[state.currentIndex];
+      if (state.practiceMode === 'guide' && state.guidedStep >= item.strokes.length) {
+        return;
+      }
+
+      canvas.setPointerCapture(e.pointerId);
+      const pt = getNormalizedPoint(e);
+      state.isDrawing = true;
+      state.rainbowHue = (state.rainbowHue + 40) % 360;
+
+      state.currentPointerStroke = {
+        points: [pt],
+        color: state.brushColor.hex,
+        isRainbow: state.brushColor.isRainbow,
+        startHue: state.rainbowHue,
+        sizeRatio: BRUSH_SIZES[state.brushSizeKey],
+      };
+    }
+
+    function handlePointerMove(e) {
+      if (!state.isDrawing || !state.currentPointerStroke) return;
+      e.preventDefault();
+
+      const pt = getNormalizedPoint(e);
+      const pts = state.currentPointerStroke.points;
+      const last = pts[pts.length - 1];
+      const dist = Math.hypot(pt.x - last.x, pt.y - last.y);
+      if (dist > 0.005) {
+        pts.push(pt);
+      }
+    }
+
+    function handlePointerUp(e) {
+      if (!state.isDrawing) return;
+      state.isDrawing = false;
+
+      const finishedStroke = state.currentPointerStroke;
+      state.currentPointerStroke = null;
+      if (!finishedStroke || finishedStroke.points.length === 0) return;
+
+      const item = ZHUYIN_DATA[state.currentIndex];
+
+      if (state.practiceMode === 'guide') {
+        // 筆順引導模式：判定當前目標筆畫
+        const targetRaw = item.strokes[state.guidedStep];
+        const result = evaluateGuidedStroke(finishedStroke.points, targetRaw);
+
+        if (result.passed) {
+          // 寫對了！補齊上色並播放清脆叮聲
+          state.guidedCompleted.push({
+            strokeIdx: state.guidedStep,
+            color: finishedStroke.color,
+            isRainbow: finishedStroke.isRainbow,
+            startHue: finishedStroke.startHue,
+            sizeRatio: finishedStroke.sizeRatio,
+          });
+          playStrokeDing(state.guidedStep);
+          state.guidedStep++;
+          updateStrokeProgressUI();
+
+          // 全部筆劃完成，自動慶祝！
+          if (state.guidedStep >= item.strokes.length) {
+            setTimeout(() => triggerSymbolSuccess(true), 260);
+          }
+        } else {
+          // 溫柔引導提示
+          showToast(result.reason);
+        }
+      } else {
+        // 自由描線 / 虛線輪廓 / 挑戰默寫模式
+        state.freeStrokes.push(finishedStroke);
+      }
+    }
+
+    canvas.addEventListener('pointerdown', handlePointerDown);
+    canvas.addEventListener('pointermove', handlePointerMove);
+    canvas.addEventListener('pointerup', handlePointerUp);
+    canvas.addEventListener('pointercancel', handlePointerUp);
+
+    /**
+     * =========================================================================
+     * 10. 慶祝紙花動畫 (Confetti) 與完成獎勵
+     * =========================================================================
+     */
+    let confettiParticles = [];
+    let confettiAnimId = null;
+
+    function launchConfetti() {
+      const colors = ['#FF595E', '#FFCA3A', '#8AC926', '#1982C4', '#6A4C93', '#FB923C', '#F472B6'];
+      confettiParticles = [];
+
+      for (let i = 0; i < 120; i++) {
+        confettiParticles.push({
+          x: window.innerWidth * (0.12 + Math.random() * 0.76),
+          y: -20 - Math.random() * 140,
+          w: 8 + Math.random() * 7,
+          h: 6 + Math.random() * 5,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          vx: (Math.random() - 0.5) * 6.5,
+          vy: 2.5 + Math.random() * 4.5,
+          rotation: Math.random() * 360,
+          rotSpeed: (Math.random() - 0.5) * 12,
+          opacity: 1,
+        });
+      }
+
+      if (confettiAnimId) cancelAnimationFrame(confettiAnimId);
+      animateConfetti();
+    }
+
+    function animateConfetti() {
+      confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+      let alive = 0;
+
+      for (const p of confettiParticles) {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.08;
+        p.rotation += p.rotSpeed;
+        if (p.y > window.innerHeight * 0.75) p.opacity -= 0.025;
+
+        if (p.opacity > 0 && p.y < window.innerHeight + 30) {
+          alive++;
+          confettiCtx.save();
+          confettiCtx.globalAlpha = Math.max(0, p.opacity);
+          confettiCtx.translate(p.x, p.y);
+          confettiCtx.rotate((p.rotation * Math.PI) / 180);
+          confettiCtx.fillStyle = p.color;
+          confettiCtx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+          confettiCtx.restore();
+        }
+      }
+
+      if (alive > 0) {
+        confettiAnimId = requestAnimationFrame(animateConfetti);
+      } else {
+        confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+        confettiAnimId = null;
+      }
+    }
+
+    function triggerSymbolSuccess(isFromGuide = false) {
+      const item = ZHUYIN_DATA[state.currentIndex];
+      state.completedSet.add(item.char);
+      saveProgress();
+      updateProgressUI();
+      renderSymbolGrid();
+      currentStarStatus.classList.remove('hidden');
+
+      playRewardSound();
+      launchConfetti();
+
+      const praise = PRAISE_MESSAGES[Math.floor(Math.random() * PRAISE_MESSAGES.length)];
+      rewardTitle.textContent = praise;
+
+      if (state.completedSet.size === ZHUYIN_DATA.length) {
+        rewardSubtitle.textContent = '太不可思議了！你已經收集完所有 37 顆星星，是超級注音小達人！🎉';
+      } else if (isFromGuide) {
+        rewardSubtitle.textContent = `你照著標準筆順完成了「${item.char}（${item.word}）」，獲得一顆閃亮小星星！`;
+      } else {
+        rewardSubtitle.textContent = `你完成了「${item.char}（${item.word}）」的描寫練習，獲得一顆閃亮小星星！`;
+      }
+
+      rewardModal.classList.remove('hidden');
+      rewardModal.classList.add('flex');
+    }
+
+    /**
+     * =========================================================================
+     * 11. 介面渲染與狀態同步
+     * =========================================================================
+     */
+    function showToast(msg) {
+      canvasToast.textContent = msg;
+      canvasToast.classList.remove('opacity-0');
+      canvasToast.classList.add('opacity-100');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        canvasToast.classList.remove('opacity-100');
+        canvasToast.classList.add('opacity-0');
+      }, 2400);
+    }
+
+    function updateProgressUI() {
+      const done = state.completedSet.size;
+      const total = ZHUYIN_DATA.length;
+      progressText.textContent = `${done} / ${total}`;
+      progressBar.style.width = `${Math.round((done / total) * 100)}%`;
+    }
+
+    function updateStrokeProgressUI(customText = null) {
+      const item = ZHUYIN_DATA[state.currentIndex];
+      const total = item.strokes.length;
+
+      if (customText) {
+        strokeProgressText.textContent = customText;
+        return;
+      }
+
+      if (state.practiceMode === 'guide') {
+        if (state.guidedStep >= total) {
+          strokeProgressText.textContent = `完成！共 ${total} 畫 🌟`;
+        } else {
+          strokeProgressText.textContent = `第 ${state.guidedStep + 1} 畫 / 共 ${total} 畫`;
+        }
+      } else if (state.practiceMode === 'trace') {
+        strokeProgressText.textContent = `自由描線（共 ${total} 畫）`;
+      } else if (state.practiceMode === 'dashed') {
+        strokeProgressText.textContent = `虛線描寫（共 ${total} 畫）`;
+      } else {
+        strokeProgressText.textContent = `挑戰默寫（共 ${total} 畫）`;
+      }
+    }
+
+    function renderColorPalette() {
+      colorPalette.innerHTML = '';
+      BRUSH_COLORS.forEach(c => {
+        const isSelected = state.brushColor.id === c.id;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.title = c.name;
+        btn.setAttribute('aria-label', c.name);
+        btn.className = `btn-3d aspect-square w-full rounded-full border-4 transition-all flex items-center justify-center ${
+          c.isRainbow ? 'rainbow-bg' : ''
+        } ${
+          isSelected
+            ? 'border-amber-400 scale-110 ring-2 ring-amber-300 shadow-md'
+            : 'border-white shadow-sm hover:scale-105'
+        }`;
+        if (!c.isRainbow) btn.style.backgroundColor = c.hex;
+        if (isSelected) btn.innerHTML = `<span class="text-white text-xs font-black drop-shadow">✓</span>`;
+
+        btn.addEventListener('click', () => {
+          playSoftPop();
+          state.brushColor = c;
+          currentColorName.textContent = c.name;
+          renderColorPalette();
+        });
+        colorPalette.appendChild(btn);
+      });
+    }
+
+    function renderSymbolGrid() {
+      symbolGrid.innerHTML = '';
+      ZHUYIN_DATA.forEach((item, index) => {
+        if (state.activeCategory !== 'all' && item.cat !== state.activeCategory) return;
+
+        const isCurrent = index === state.currentIndex;
+        const isCompleted = state.completedSet.has(item.char);
+        const meta = CATEGORY_META[item.cat];
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `btn-3d relative py-2 sm:py-2.5 rounded-2xl border-2 font-kai text-2xl sm:text-3xl font-bold flex items-center justify-center transition-all ${
+          meta.cardBg
+        } ${
+          isCurrent
+            ? 'ring-4 ring-emerald-400 border-emerald-500 scale-105 shadow-md z-10'
+            : 'shadow-sm'
+        }`;
+
+        btn.innerHTML = `
+          <span>${item.char}</span>
+          ${isCompleted
+            ? '<span class="absolute -top-2 -right-1.5 text-base sm:text-lg drop-shadow animate-star-pop" title="已完成">⭐</span>'
+            : ''
+          }
+        `;
+
+        btn.addEventListener('click', () => {
+          playSoftPop();
+          selectSymbol(index);
+          if (window.innerWidth < 1024) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        });
+
+        symbolGrid.appendChild(btn);
+      });
+    }
+
+    function clearCurrentDrawing() {
+      state.freeStrokes = [];
+      state.guidedStep = 0;
+      state.guidedCompleted = [];
+      state.currentPointerStroke = null;
+      updateStrokeProgressUI();
+    }
+
+    function selectSymbol(index) {
+      if (state.isAnimating) stopStrokeAnimation();
+
+      state.currentIndex = (index + ZHUYIN_DATA.length) % ZHUYIN_DATA.length;
+      clearCurrentDrawing();
+
+      const item = ZHUYIN_DATA[state.currentIndex];
+      const meta = CATEGORY_META[item.cat];
+
+      currentSymbolHeader.textContent = item.char;
+      strokeCountBadge.textContent = `共 ${item.strokes.length} 畫`;
+      currentCategoryBadge.textContent = meta.label;
+      currentCategoryBadge.className = `px-2.5 py-1 rounded-full text-xs font-bold border ${meta.badgeClass}`;
+
+      if (state.completedSet.has(item.char)) {
+        currentStarStatus.classList.remove('hidden');
+      } else {
+        currentStarStatus.classList.add('hidden');
+      }
+
+      wordEmoji.textContent = item.emoji;
+      wordText.textContent = item.word;
+      pinyinHint.textContent = item.reading;
+
+      updateStrokeProgressUI();
+      renderSymbolGrid();
+    }
+
+    /**
+     * =========================================================================
+     * 12. 按鈕與控制項事件綁定
+     * =========================================================================
+     */
+    document.getElementById('prevBtn').addEventListener('click', () => {
+      playSoftPop();
+      selectSymbol(state.currentIndex - 1);
+    });
+
+    document.getElementById('nextBtn').addEventListener('click', () => {
+      playSoftPop();
+      selectSymbol(state.currentIndex + 1);
+    });
+
+    // 模式切換
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        playSoftPop();
+        if (state.isAnimating) stopStrokeAnimation();
+
+        state.practiceMode = btn.dataset.mode;
+        clearCurrentDrawing();
+
+        document.querySelectorAll('.mode-btn').forEach(b => {
+          const active = b.dataset.mode === state.practiceMode;
+          b.className = active
+            ? 'mode-btn py-2 px-1 sm:px-2 rounded-xl text-xs sm:text-sm font-black transition-all bg-gradient-to-b from-orange-400 to-amber-500 text-white shadow-sm'
+            : 'mode-btn py-2 px-1 sm:px-2 rounded-xl text-xs sm:text-sm font-bold transition-all bg-white text-amber-900 hover:bg-amber-100';
+        });
+
+        opacityControlWrap.style.visibility = state.practiceMode === 'memory' ? 'hidden' : 'visible';
+        updateStrokeProgressUI();
+      });
+    });
+
+    // 看筆順動畫按鈕
+    playAnimBtn.addEventListener('click', () => {
+      playSoftPop();
+      if (state.isAnimating) {
+        stopStrokeAnimation();
+      } else {
+        startStrokeAnimation();
+      }
+    });
+
+    // 速度切換
+    speedSlowBtn.addEventListener('click', () => {
+      playSoftPop();
+      state.animSpeed = 'slow';
+      speedSlowBtn.className = 'speed-btn px-2.5 py-1 rounded-lg text-xs font-bold transition-all bg-purple-500 text-white shadow-sm';
+      speedNormalBtn.className = 'speed-btn px-2.5 py-1 rounded-lg text-xs font-bold transition-all text-purple-800 hover:bg-purple-100';
+    });
+
+    speedNormalBtn.addEventListener('click', () => {
+      playSoftPop();
+      state.animSpeed = 'normal';
+      speedNormalBtn.className = 'speed-btn px-2.5 py-1 rounded-lg text-xs font-bold transition-all bg-purple-500 text-white shadow-sm';
+      speedSlowBtn.className = 'speed-btn px-2.5 py-1 rounded-lg text-xs font-bold transition-all text-purple-800 hover:bg-purple-100';
+    });
+
+    // 顯示箭頭開關與底字深淺
+    showArrowsToggle.addEventListener('change', (e) => {
+      state.showStrokeHints = e.target.checked;
+    });
+
+    opacitySlider.addEventListener('input', (e) => {
+      state.templateOpacity = Number(e.target.value) / 100;
+    });
+
+    // 復原與清除
+    document.getElementById('undoBtn').addEventListener('click', () => {
+      if (state.isAnimating) stopStrokeAnimation();
+
+      if (state.practiceMode === 'guide') {
+        if (state.guidedCompleted.length > 0) {
+          playSoftPop();
+          state.guidedCompleted.pop();
+          state.guidedStep = Math.max(0, state.guidedStep - 1);
+          updateStrokeProgressUI();
+        } else {
+          showToast('目前還沒有可以復原的筆畫喔！');
+        }
+      } else {
+        if (state.freeStrokes.length > 0) {
+          playSoftPop();
+          state.freeStrokes.pop();
+        } else {
+          showToast('目前還沒有可以復原的筆畫喔！');
+        }
+      }
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      if (state.isAnimating) stopStrokeAnimation();
+      playSoftPop();
+      clearCurrentDrawing();
+    });
+
+    // 我寫好了！按鈕
+    document.getElementById('doneBtn').addEventListener('click', () => {
+      if (state.isAnimating) stopStrokeAnimation();
+
+      const item = ZHUYIN_DATA[state.currentIndex];
+      if (state.practiceMode === 'guide') {
+        if (state.guidedStep < item.strokes.length) {
+          showToast(`還有 ${item.strokes.length - state.guidedStep} 畫還沒寫完喔！加油！`);
+          return;
+        }
+      } else {
+        if (state.freeStrokes.length === 0) {
+          showToast('先在田字格裡寫寫看再按完成喔！✏️');
+          return;
+        }
+      }
+      triggerSymbolSuccess(state.practiceMode === 'guide');
+    });
+
+    // 雙語音按鈕
+    document.getElementById('speakCharBtn').addEventListener('click', () => {
+      const item = ZHUYIN_DATA[state.currentIndex];
+      speakText(item.ttsChar, document.getElementById('speakCharIcon'));
+    });
+
+    document.getElementById('speakWordBtn').addEventListener('click', () => {
+      const item = ZHUYIN_DATA[state.currentIndex];
+      speakText(item.ttsWord, document.getElementById('speakWordIcon'));
+    });
+
+    // 筆刷粗細選擇
+    document.querySelectorAll('.size-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        playSoftPop();
+        state.brushSizeKey = btn.dataset.size;
+        document.querySelectorAll('.size-btn').forEach(b => {
+          const active = b.dataset.size === state.brushSizeKey;
+          b.className = active
+            ? 'size-btn btn-3d py-2.5 px-3 rounded-2xl border-2 border-purple-500 bg-purple-100 ring-2 ring-purple-300 flex flex-col items-center justify-center gap-1.5 transition-all'
+            : 'size-btn btn-3d py-2.5 px-3 rounded-2xl border-2 border-purple-200 bg-purple-50/50 hover:bg-purple-100 flex flex-col items-center justify-center gap-1.5 transition-all';
+        });
+      });
+    });
+
+    // 分類篩選分頁
+    document.querySelectorAll('.cat-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        playSoftPop();
+        state.activeCategory = tab.dataset.cat;
+
+        document.querySelectorAll('.cat-tab').forEach(t => {
+          const active = t.dataset.cat === state.activeCategory;
+          if (active) {
+            t.className = 'cat-tab px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-bold transition-all bg-emerald-400 text-white shadow-sm';
+          } else {
+            const cat = t.dataset.cat;
+            if (cat === 'initial') {
+              t.className = 'cat-tab px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-bold transition-all bg-rose-50 text-rose-700 border-2 border-rose-200 hover:bg-rose-100';
+            } else if (cat === 'medial') {
+              t.className = 'cat-tab px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-bold transition-all bg-sky-50 text-sky-700 border-2 border-sky-200 hover:bg-sky-100';
+            } else if (cat === 'final') {
+              t.className = 'cat-tab px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-bold transition-all bg-amber-50 text-amber-800 border-2 border-amber-200 hover:bg-amber-100';
+            } else {
+              t.className = 'cat-tab px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-bold transition-all bg-emerald-50 text-emerald-700 border-2 border-emerald-200 hover:bg-emerald-100';
+            }
+          }
+        });
+        renderSymbolGrid();
+      });
+    });
+
+    // 鼓勵彈窗按鈕
+    document.getElementById('rewardRetryBtn').addEventListener('click', () => {
+      playSoftPop();
+      rewardModal.classList.add('hidden');
+      rewardModal.classList.remove('flex');
+      clearCurrentDrawing();
+    });
+
+    document.getElementById('rewardNextBtn').addEventListener('click', () => {
+      playSoftPop();
+      rewardModal.classList.add('hidden');
+      rewardModal.classList.remove('flex');
+      selectSymbol(state.currentIndex + 1);
+    });
+
+    // 重置進度彈窗
+    document.getElementById('resetProgressBtn').addEventListener('click', () => {
+      playSoftPop();
+      resetModal.classList.remove('hidden');
+      resetModal.classList.add('flex');
+    });
+
+    document.getElementById('cancelResetBtn').addEventListener('click', () => {
+      playSoftPop();
+      resetModal.classList.add('hidden');
+      resetModal.classList.remove('flex');
+    });
+
+    document.getElementById('confirmResetBtn').addEventListener('click', () => {
+      playSoftPop();
+      state.completedSet.clear();
+      saveProgress();
+      updateProgressUI();
+      selectSymbol(state.currentIndex);
+      resetModal.classList.add('hidden');
+      resetModal.classList.remove('flex');
+      showToast('已重置所有學習進度，加油重新挑戰！✨');
+    });
+
+    /**
+     * =========================================================================
+     * 13. 啟動初始化
+     * =========================================================================
+     */
+    function init() {
+      loadProgress();
+      updateProgressUI();
+      renderColorPalette();
+      selectSymbol(0);
+      resizeCanvas();
+
+      window.addEventListener('resize', resizeCanvas);
+      requestAnimationFrame(renderFrame);
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
