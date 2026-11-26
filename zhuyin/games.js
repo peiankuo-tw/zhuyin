@@ -735,6 +735,7 @@
     let combo = 0;
     let paused = false;
     let targetItem = deck.draw();
+    let spawnsSinceTarget = 0;
     let animId = null;
     let lastTime = performance.now();
 
@@ -815,9 +816,31 @@
       return src[Math.floor(Math.random() * src.length)];
     }
 
-    function spawnBalloon(forceTarget = false, startY = null) {
+    function spawnBalloon(forceMode = 'auto', startY = null) {
+      // forceMode: 'auto' | 'target' | 'distractor'
       const hasTarget = balloons.some((b) => b.item.char === targetItem.char && b.y > 40);
-      const useTarget = forceTarget || !hasTarget || Math.random() < 0.38;
+      let useTarget = false;
+      if (forceMode === 'target') {
+        useTarget = true;
+      } else if (forceMode === 'distractor') {
+        useTarget = false;
+      } else {
+        // 不再永遠讓「剛生出來的第一顆」就是答案：隨機穿插干擾氣球，最多連續 2 顆干擾後才保底出答案
+        if (!hasTarget && spawnsSinceTarget >= 2) {
+          useTarget = true;
+        } else if (!hasTarget) {
+          useTarget = Math.random() < 0.34;
+        } else {
+          useTarget = Math.random() < 0.16;
+        }
+      }
+
+      if (useTarget) {
+        spawnsSinceTarget = 0;
+      } else {
+        spawnsSinceTarget += 1;
+      }
+
       const item = useTarget ? targetItem : pickDistractor();
       const pal = BALLOON_PALETTE[Math.floor(Math.random() * BALLOON_PALETTE.length)];
       const r = cw < 450 ? 34 : 40;
@@ -852,14 +875,24 @@
     }
 
     function setNewTarget() {
-      targetItem = deck.draw((it) => it.char === targetItem.char);
+      const prevChar = targetItem.char;
+      // 優先從「畫面上已經存在的氣球」中挑一顆當新題目（約 65% 機率），讓小朋友必須掃視全部氣球思考尋找！
+      const visibleCandidates = balloons.filter(
+        (b) => b.item.char !== prevChar && b.y > 105 && b.y < ch - 35
+      );
+      if (visibleCandidates.length >= 2 && Math.random() < 0.65) {
+        const picked = visibleCandidates[Math.floor(Math.random() * visibleCandidates.length)];
+        targetItem = picked.item;
+      } else {
+        targetItem = deck.draw((it) => it.char === prevChar);
+      }
+
+      spawnsSinceTarget = 0;
       targetCharEl.textContent = targetItem.char;
       targetHintEl.textContent = `${targetItem.emoji} ${targetItem.word}`;
       feedbackEl.textContent = `🎯 找找看寫著「${targetItem.char}（${targetItem.emoji} ${targetItem.word}）」的氣球！`;
       app().playZhuyinAudio(targetItem.char);
-
-      const exists = balloons.some((b) => b.item.char === targetItem.char && b.y > 70 && b.y < ch - 20);
-      if (!exists) spawnBalloon(true, ch + 28);
+      // 不再於換題瞬間單獨生成一顆答案氣球，改由自然波次穿插干擾氣球出現
     }
 
     function spawnBurst(x, y, color) {
@@ -956,7 +989,7 @@
 
       const desiredCount = gState.difficulty === 'easy' ? 5 : 7;
       if (!paused && balloons.length < desiredCount) {
-        spawnBalloon(false);
+        spawnBalloon('auto');
       }
 
       for (let i = balloons.length - 1; i >= 0; i--) {
@@ -1078,11 +1111,13 @@
     }
 
     resize();
-    spawnBalloon(true, ch * 0.72);
-    spawnBalloon(false, ch * 0.55);
-    spawnBalloon(false, ch * 0.85);
-    spawnBalloon(true, ch * 0.95);
-    spawnBalloon(false, ch * 0.4);
+    // 開局同時放 5 顆混合氣球（隨機位置與高度，其中 1 顆是目標、4 顆是干擾）
+    const initHeights = shuffle([ch * 0.42, ch * 0.56, ch * 0.68, ch * 0.80, ch * 0.92]);
+    spawnBalloon('target', initHeights[0]);
+    spawnBalloon('distractor', initHeights[1]);
+    spawnBalloon('distractor', initHeights[2]);
+    spawnBalloon('distractor', initHeights[3]);
+    spawnBalloon('distractor', initHeights[4]);
 
     app().playZhuyinAudio(targetItem.char);
     animId = requestAnimationFrame(tick);
@@ -1115,6 +1150,7 @@
     let paused = false;
     let destroyed = false;
     let targetItem = deck.draw();
+    let molesSinceTarget = 0;
     const holeTimers = new Array(9).fill(null);
     const holeItems = new Array(9).fill(null);
     let spawnLoopTimer = null;
@@ -1205,10 +1241,31 @@
       holes[idx].classList.remove('is-up', 'is-bonked');
     }
 
-    function popUpHole(idx, forceTarget = false) {
+    function popUpHole(idx, forceMode = 'auto') {
       if (paused || destroyed || holeItems[idx]) return;
       const targetAlreadyUp = holeItems.some((it) => it && it.char === targetItem.char);
-      const useTarget = forceTarget || !targetAlreadyUp || Math.random() < 0.42;
+      let useTarget = false;
+      if (forceMode === 'target') {
+        useTarget = true;
+      } else if (forceMode === 'distractor') {
+        useTarget = false;
+      } else {
+        // 不再於換題後立刻讓下一隻探頭的地鼠 100% 是答案：穿插 1~3 隻干擾地鼠，讓小朋友真的看字判斷！
+        if (!targetAlreadyUp && molesSinceTarget >= 3) {
+          useTarget = true;
+        } else if (!targetAlreadyUp) {
+          useTarget = Math.random() < 0.32;
+        } else {
+          useTarget = Math.random() < 0.14;
+        }
+      }
+
+      if (useTarget) {
+        molesSinceTarget = 0;
+      } else {
+        molesSinceTarget += 1;
+      }
+
       const item = useTarget ? targetItem : pickDistractor();
 
       holeItems[idx] = item;
@@ -1230,8 +1287,10 @@
         if (activeCount < maxActive) {
           const freeIndices = holeItems.map((it, idx) => (it ? -1 : idx)).filter((idx) => idx >= 0);
           if (freeIndices.length > 0) {
-            const chosenIdx = freeIndices[Math.floor(Math.random() * freeIndices.length)];
-            popUpHole(chosenIdx);
+            // 偶爾同時冒出 2 隻不同注音的地鼠，增加比較與思考樂趣
+            const burst = activeCount <= 1 && freeIndices.length >= 2 && Math.random() < 0.55 ? 2 : 1;
+            const pickedHoles = shuffle(freeIndices).slice(0, burst);
+            pickedHoles.forEach((hIdx) => popUpHole(hIdx, 'auto'));
           }
         }
       }
@@ -1240,7 +1299,15 @@
     }
 
     function nextTarget() {
-      targetItem = deck.draw((it) => it.char === targetItem.char);
+      const prevChar = targetItem.char;
+      // 如果草地上已經有 2 隻以上地鼠，約 45% 機率直接從其中挑一隻當新題目，考驗即時觀察
+      const activeMoles = holeItems.filter((it) => it && it.char !== prevChar);
+      if (activeMoles.length >= 2 && Math.random() < 0.45) {
+        targetItem = activeMoles[Math.floor(Math.random() * activeMoles.length)];
+      } else {
+        targetItem = deck.draw((it) => it.char === prevChar);
+      }
+      molesSinceTarget = 0;
       targetCharEl.textContent = targetItem.char;
       targetHintEl.textContent = `${targetItem.emoji} ${targetItem.word}`;
       feedbackEl.textContent = `🔨 下一隻！找抱著「${targetItem.char}（${targetItem.emoji} ${targetItem.word}）」牌子的地鼠！`;
@@ -1295,7 +1362,10 @@
                   levelBadge.textContent = `第 ${level} 關`;
                   scoreBadge.textContent = `🐹 0 / ${STAGE_GOAL}`;
                   nextTarget();
-                  popUpHole(4, true);
+                  const startHoles = shuffle([0, 1, 2, 3, 4, 5, 6, 7, 8]).slice(0, 3);
+                  popUpHole(startHoles[0], 'distractor');
+                  popUpHole(startHoles[1], 'distractor');
+                  popUpHole(startHoles[2], 'target');
                 }
               );
             }, 350);
@@ -1321,8 +1391,11 @@
     });
 
     app().playZhuyinAudio(targetItem.char);
-    popUpHole(4, true);
-    setTimeout(() => popUpHole(1, false), 350);
+    // 開局同時在隨機 3 個洞冒出「2 隻干擾 + 1 隻目標」，不會固定在中間或第一隻就是答案
+    const initHoles = shuffle([0, 1, 2, 3, 4, 5, 6, 7, 8]).slice(0, 3);
+    popUpHole(initHoles[0], 'distractor');
+    popUpHole(initHoles[1], 'target');
+    popUpHole(initHoles[2], 'distractor');
     scheduleSpawn();
 
     return () => {
