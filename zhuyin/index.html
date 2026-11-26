@@ -102,6 +102,75 @@
     input[type="range"] {
       accent-color: #FB923C;
     }
+
+    /* 遊戲互動動畫：搖晃提示、彈出、3D翻牌 */
+    @keyframes gentleShake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-6px) rotate(-2deg); }
+      40% { transform: translateX(6px) rotate(2deg); }
+      60% { transform: translateX(-4px) rotate(-1deg); }
+      80% { transform: translateX(4px) rotate(1deg); }
+    }
+    .animate-gentle-shake {
+      animation: gentleShake 0.42s ease-in-out;
+    }
+
+    @keyframes floatUpFade {
+      0% { transform: translate(-50%, 0) scale(0.8); opacity: 1; }
+      100% { transform: translate(-50%, -44px) scale(1.25); opacity: 0; }
+    }
+    .animate-float-score {
+      animation: floatUpFade 0.75s ease-out forwards;
+    }
+
+    /* 3D 翻牌記憶卡 */
+    .flip-card {
+      perspective: 900px;
+    }
+    .flip-card-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transition: transform 0.45s cubic-bezier(0.34, 1.4, 0.64, 1);
+      transform-style: preserve-3d;
+    }
+    .flip-card.is-flipped .flip-card-inner,
+    .flip-card.is-matched .flip-card-inner {
+      transform: rotateY(180deg);
+    }
+    .flip-card-face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+    .flip-card-back {
+      transform: rotateY(180deg);
+    }
+
+    /* 打地鼠探頭動畫 */
+    .mole-sprite {
+      transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transform: translateY(105%);
+    }
+    .mole-hole.is-up .mole-sprite {
+      transform: translateY(6%);
+    }
+    .mole-hole.is-bonked .mole-sprite {
+      transform: translateY(35%) scale(0.92);
+    }
+
+    /* 連連看觸控區 */
+    #connectBoardWrap {
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #balloonCanvas {
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
   </style>
 </head>
 <body class="min-h-screen pb-10">
@@ -160,6 +229,24 @@
 
   <!-- 主要學習區 -->
   <main class="max-w-6xl mx-auto px-3 sm:px-5 pt-4 space-y-5">
+
+    <!-- 兩大主功能切換列：寫字練習 vs 注音遊樂園 -->
+    <nav aria-label="功能切換" class="grid grid-cols-2 gap-2.5 sm:gap-3 bg-white/95 p-2 rounded-[1.75rem] border-4 border-amber-200/90 shadow-md shadow-amber-900/5">
+      <button id="tabWriteBtn" type="button"
+        class="btn-3d py-2.5 sm:py-3 px-4 rounded-2xl font-black text-base sm:text-lg flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-amber-400 to-orange-400 text-white border-b-4 border-orange-600 shadow-sm">
+        <span class="text-xl sm:text-2xl">✏️</span>
+        <span>寫字練習</span>
+      </button>
+      <button id="tabGamesBtn" type="button"
+        class="btn-3d py-2.5 sm:py-3 px-4 rounded-2xl font-black text-base sm:text-lg flex items-center justify-center gap-2 transition-all bg-amber-50 hover:bg-amber-100 text-amber-900 border-b-4 border-amber-200">
+        <span class="text-xl sm:text-2xl">🎮</span>
+        <span>注音遊樂園</span>
+        <span class="hidden sm:inline-block px-2 py-0.5 rounded-full text-xs font-black bg-rose-100 text-rose-600 border border-rose-200">5款遊戲</span>
+      </button>
+    </nav>
+
+    <!-- ========== 分頁 1：原本的描線寫字練習區 ========== -->
+    <div id="writingSection" class="space-y-5">
 
     <!-- 上半部：田字格描寫畫布 + 語詞發音與畫筆工具 -->
     <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start">
@@ -424,6 +511,11 @@
         <!-- 由 JS 動態生成 37 個注音卡片 -->
       </div>
     </section>
+
+    </div> <!-- /writingSection -->
+
+    <!-- ========== 分頁 2：注音遊樂園（由 games.js 動態渲染） ========== -->
+    <div id="gamesSection" class="hidden space-y-5"></div>
 
   </main>
 
@@ -2301,9 +2393,65 @@
 
     /**
      * =========================================================================
-     * 13. 啟動初始化
+     * 13. 主分頁切換（寫字練習 / 注音遊樂園）與啟動初始化
      * =========================================================================
      */
+    const writingSection = document.getElementById('writingSection');
+    const gamesSection = document.getElementById('gamesSection');
+    const tabWriteBtn = document.getElementById('tabWriteBtn');
+    const tabGamesBtn = document.getElementById('tabGamesBtn');
+
+    function switchMainTab(tab) {
+      const isGames = tab === 'games';
+      if (isGames) {
+        if (state.isAnimating) stopStrokeAnimation();
+        writingSection.classList.add('hidden');
+        gamesSection.classList.remove('hidden');
+
+        tabGamesBtn.className = 'btn-3d py-2.5 sm:py-3 px-4 rounded-2xl font-black text-base sm:text-lg flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-fuchsia-500 to-violet-500 text-white border-b-4 border-violet-700 shadow-sm';
+        tabWriteBtn.className = 'btn-3d py-2.5 sm:py-3 px-4 rounded-2xl font-black text-base sm:text-lg flex items-center justify-center gap-2 transition-all bg-amber-50 hover:bg-amber-100 text-amber-900 border-b-4 border-amber-200';
+
+        if (window.ZhuyinGames && typeof window.ZhuyinGames.onEnter === 'function') {
+          window.ZhuyinGames.onEnter();
+        }
+      } else {
+        if (window.ZhuyinGames && typeof window.ZhuyinGames.onLeave === 'function') {
+          window.ZhuyinGames.onLeave();
+        }
+        gamesSection.classList.add('hidden');
+        writingSection.classList.remove('hidden');
+
+        tabWriteBtn.className = 'btn-3d py-2.5 sm:py-3 px-4 rounded-2xl font-black text-base sm:text-lg flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-amber-400 to-orange-400 text-white border-b-4 border-orange-600 shadow-sm';
+        tabGamesBtn.className = 'btn-3d py-2.5 sm:py-3 px-4 rounded-2xl font-black text-base sm:text-lg flex items-center justify-center gap-2 transition-all bg-amber-50 hover:bg-amber-100 text-amber-900 border-b-4 border-amber-200';
+
+        requestAnimationFrame(resizeCanvas);
+      }
+    }
+
+    tabWriteBtn.addEventListener('click', () => {
+      playSoftPop();
+      switchMainTab('write');
+    });
+
+    tabGamesBtn.addEventListener('click', () => {
+      playSoftPop();
+      switchMainTab('games');
+    });
+
+    // 匯出共用資料與音效工具給 games.js 使用
+    window.ZhuyinApp = {
+      ZHUYIN_DATA,
+      CATEGORY_META,
+      state,
+      speakText,
+      playStrokeDing,
+      playRewardSound,
+      playSoftPop,
+      launchConfetti,
+      getAudioContext,
+      switchMainTab,
+    };
+
     function init() {
       loadProgress();
       updateProgressUI();
@@ -2313,9 +2461,17 @@
 
       window.addEventListener('resize', resizeCanvas);
       requestAnimationFrame(renderFrame);
+
+      if (window.ZhuyinGames && typeof window.ZhuyinGames.init === 'function') {
+        window.ZhuyinGames.init(gamesSection);
+      }
+      if (window.location.hash === '#games') {
+        switchMainTab('games');
+      }
     }
 
     window.addEventListener('DOMContentLoaded', init);
   </script>
+  <script src="./games.js"></script>
 </body>
 </html>
