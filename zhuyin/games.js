@@ -802,12 +802,13 @@
     let ch = 400;
 
     function resize() {
-      const rect = canvas.parentElement.getBoundingClientRect();
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width < 10 || rect.height < 10) return;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      cw = Math.max(300, Math.floor(rect.width));
-      ch = Math.max(320, Math.floor(rect.height));
-      canvas.width = cw * dpr;
-      canvas.height = ch * dpr;
+      cw = Math.round(rect.width);
+      ch = Math.round(rect.height);
+      canvas.width = Math.round(cw * dpr);
+      canvas.height = Math.round(ch * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
 
@@ -1069,8 +1070,9 @@
       if (paused) return;
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
-      const px = e.clientX - rect.left;
-      const py = e.clientY - rect.top;
+      if (!rect.width || !rect.height) return;
+      const px = ((e.clientX - rect.left) / rect.width) * cw;
+      const py = ((e.clientY - rect.top) / rect.height) * ch;
       let hitAny = false;
 
       for (let i = balloons.length - 1; i >= 0; i--) {
@@ -1143,6 +1145,9 @@
 
     canvas.addEventListener('pointerdown', onCanvasDown);
     window.addEventListener('resize', resize);
+    const resizeObs = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => resize()) : null;
+    if (resizeObs) resizeObs.observe(canvas);
+    requestAnimationFrame(resize);
     stage.querySelector('#balloonSpeakBtn').addEventListener('click', () => {
       app().playZhuyinAudio(targetItem.char);
     });
@@ -1151,6 +1156,7 @@
       if (animId) cancelAnimationFrame(animId);
       canvas.removeEventListener('pointerdown', onCanvasDown);
       window.removeEventListener('resize', resize);
+      if (resizeObs) resizeObs.disconnect();
     };
   }
 
