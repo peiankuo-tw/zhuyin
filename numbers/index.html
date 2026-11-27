@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>快樂學數字・時鐘啟蒙小教室</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700;900&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            rounded: ['"Zen Maru Gothic"', '"Noto Sans TC"', 'sans-serif'],
+            abc: ['"Fredoka"', '"Zen Maru Gothic"', 'sans-serif'],
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      font-family: 'Zen Maru Gothic', 'Noto Sans TC', sans-serif;
+      background-color: #FAF7FF;
+      background-image: radial-gradient(#DDD6FE 1.2px, transparent 1.2px);
+      background-size: 24px 24px;
+      color: #334155;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior-y: contain;
+    }
+
+    #numberCanvas {
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: crosshair;
+    }
+
+    .btn-3d {
+      transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.15s ease;
+    }
+    .btn-3d:active {
+      transform: translateY(2px);
+    }
+
+    .rainbow-bg {
+      background: conic-gradient(from 0deg, #FF595E, #FFCA3A, #8AC926, #1982C4, #6A4C93, #FF595E);
+    }
+
+    @keyframes starPop {
+      0% { transform: scale(0) rotate(-35deg); opacity: 0; }
+      60% { transform: scale(1.28) rotate(10deg); opacity: 1; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    .animate-star-pop {
+      animation: starPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    @keyframes gentleShake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-6px) rotate(-2deg); }
+      50% { transform: translateX(6px) rotate(2deg); }
+      75% { transform: translateX(-4px) rotate(-1deg); }
+    }
+    .animate-gentle-shake {
+      animation: gentleShake 0.4s ease-in-out;
+    }
+
+    input[type="range"] { accent-color: #8B5CF6; }
+  </style>
+</head>
+<body class="min-h-screen pb-10">
+
+  <canvas id="confettiCanvas" class="fixed inset-0 pointer-events-none z-50 w-full h-full"></canvas>
+
+  <!-- 頂部導覽列 -->
+  <header class="sticky top-0 z-30 bg-[#FAF7FF]/95 backdrop-blur-md border-b-2 border-violet-200/80 shadow-sm">
+    <div class="max-w-6xl mx-auto px-3 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-2.5">
+      <div class="flex items-center gap-2.5">
+        <a href="../index.html" title="回到快樂學習小教室首頁"
+          class="btn-3d px-2.5 sm:px-3 py-2 rounded-2xl bg-white hover:bg-violet-50 text-violet-800 border-2 border-violet-200 text-xs sm:text-sm font-black shadow-sm flex items-center gap-1 shrink-0">
+          <span>🏠</span>
+          <span class="hidden sm:inline">首頁</span>
+        </a>
+        <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-violet-400 to-fuchsia-500 flex items-center justify-center text-xl sm:text-2xl shadow-md border-2 border-white shrink-0">
+          🔢
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <h1 class="text-lg sm:text-2xl font-black text-violet-950 tracking-wide leading-tight">
+              快樂學數字・時鐘小教室
+            </h1>
+            <span class="hidden md:inline-block px-2 py-0.5 rounded-full text-xs font-black bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-200">
+              中班啟蒙版
+            </span>
+          </div>
+          <p class="text-xs text-violet-700/80 font-medium hidden sm:block">
+            認識 0～12 筆順與數感、動手撥魔法時鐘、用彩色時間派感受時間！
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2.5 flex-1 sm:flex-initial justify-end min-w-[200px]">
+        <div class="flex-1 sm:w-44 bg-violet-100/90 rounded-2xl p-2 border border-violet-200">
+          <div class="flex justify-between items-center text-xs font-bold text-violet-900 mb-1 px-0.5">
+            <span>⭐ 數字進度</span>
+            <span id="progressText">0 / 13</span>
+          </div>
+          <div class="w-full h-2.5 bg-white rounded-full overflow-hidden border border-violet-200/70">
+            <div id="progressBar" class="h-full bg-gradient-to-r from-violet-400 via-fuchsia-400 to-rose-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+        <button id="resetProgressBtn" type="button" title="重置數字練習進度"
+          class="btn-3d px-3 py-2.5 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 border-2 border-rose-200 text-xs sm:text-sm font-bold shadow-sm flex items-center gap-1 shrink-0">
+          <span>🔄</span>
+          <span class="hidden sm:inline">重置</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-3 sm:px-5 pt-4 space-y-5">
+
+    <!-- 四大主功能分頁 -->
+    <nav aria-label="功能切換" class="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5 bg-white/95 p-2 rounded-[1.75rem] border-4 border-violet-200/90 shadow-md">
+      <button data-tab="write" type="button"
+        class="main-tab-btn btn-3d py-2.5 px-3 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center gap-1.5 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white border-b-4 border-fuchsia-700 shadow-sm">
+        <span>✏️</span><span>數字與數一數</span>
+      </button>
+      <button data-tab="clock" type="button"
+        class="main-tab-btn btn-3d py-2.5 px-3 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center gap-1.5 bg-violet-50 hover:bg-violet-100 text-violet-900 border-b-4 border-violet-200">
+        <span>🕐</span><span>互動魔法時鐘</span>
+      </button>
+      <button data-tab="games" type="button"
+        class="main-tab-btn btn-3d py-2.5 px-3 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center gap-1.5 bg-violet-50 hover:bg-violet-100 text-violet-900 border-b-4 border-violet-200">
+        <span>🎮</span><span>時鐘數字遊戲</span>
+      </button>
+      <button data-tab="timer" type="button"
+        class="main-tab-btn btn-3d py-2.5 px-3 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center gap-1.5 bg-violet-50 hover:bg-violet-100 text-violet-900 border-b-4 border-violet-200">
+        <span>⏱️</span><span>看得見時間派</span>
+      </button>
+    </nav>
+
+    <!-- ========== 分頁 1：✏️ 數字描寫與數一數 (0～12) ========== -->
+    <section id="tabWriteSection" class="space-y-5">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start">
+
+        <!-- 左側：數字筆順描寫畫布 (7 欄) -->
+        <div class="lg:col-span-7 bg-white rounded-[2rem] p-3.5 sm:p-5 shadow-lg border-4 border-violet-200/80">
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <button id="prevNumBtn" type="button"
+              class="btn-3d px-3.5 py-2 rounded-2xl bg-violet-100 hover:bg-violet-200 text-violet-900 border-b-4 border-violet-300 font-bold text-sm flex items-center gap-1">
+              <span>⬅️</span><span>上一個</span>
+            </button>
+
+            <div class="flex items-center gap-2">
+              <span id="currentNumHeader" class="text-4xl sm:text-5xl font-black font-abc text-violet-950 leading-none">1</span>
+              <span id="currentNumZh" class="px-2.5 py-1 rounded-full text-xs sm:text-sm font-black bg-amber-100 text-amber-900 border border-amber-200">一 · One</span>
+              <span id="currentStarStatus" class="text-2xl hidden animate-star-pop">⭐</span>
+            </div>
+
+            <button id="nextNumBtn" type="button"
+              class="btn-3d px-3.5 py-2 rounded-2xl bg-violet-100 hover:bg-violet-200 text-violet-900 border-b-4 border-violet-300 font-bold text-sm flex items-center gap-1">
+              <span>下一個</span><span>➡️</span>
+            </button>
+          </div>
+
+          <!-- 模式切換 -->
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div class="inline-flex rounded-2xl bg-violet-50 border-2 border-violet-100 p-1 gap-1">
+              <button data-mode="guide" type="button" class="mode-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-black bg-violet-500 text-white shadow-sm">🧭 筆順引導</button>
+              <button data-mode="trace" type="button" class="mode-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold text-violet-900 hover:bg-violet-100">✏️ 自由描線</button>
+              <button data-mode="memory" type="button" class="mode-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold text-violet-900 hover:bg-violet-100">🧠 默寫</button>
+            </div>
+
+            <button id="playStrokeAnimBtn" type="button"
+              class="btn-3d px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-orange-400 to-amber-400 hover:from-orange-500 hover:to-amber-500 text-white border-b-4 border-orange-600 font-black text-xs sm:text-sm shadow-sm flex items-center gap-1.5">
+              <span id="playStrokeAnimIcon">▶️</span>
+              <span id="playStrokeAnimText">看筆順示範</span>
+            </button>
+          </div>
+
+          <!-- 描寫畫布 -->
+          <div class="relative w-full max-w-[440px] mx-auto aspect-[4/3] rounded-3xl overflow-hidden bg-white shadow-inner border-4 border-violet-300/90">
+            <canvas id="numberCanvas" class="w-full h-full block"></canvas>
+            <div id="canvasToast"
+              class="pointer-events-none opacity-0 transition-opacity duration-300 absolute bottom-3 left-1/2 -translate-x-1/2 bg-violet-950/90 text-white text-xs sm:text-sm font-bold px-4 py-2 rounded-full shadow-lg text-center max-w-[92%]">
+              從數字 1 圓圈開始描寫喔！
+            </div>
+          </div>
+
+          <!-- 筆順提示與底字深淺 -->
+          <div class="mt-3 bg-violet-50/90 rounded-2xl p-2.5 px-3 border-2 border-violet-100 flex flex-wrap items-center justify-between gap-2">
+            <span id="strokeStepBadge" class="px-2.5 py-1 rounded-full text-xs font-black bg-white text-violet-800 border border-violet-200">第 1 / 1 筆</span>
+            <div class="flex items-center gap-2">
+              <label for="opacitySlider" class="text-xs font-bold text-violet-800">底字深淺</label>
+              <input id="opacitySlider" type="range" min="12" max="60" value="26" class="w-24 cursor-pointer" />
+            </div>
+          </div>
+
+          <!-- 筆刷與底部操作列 -->
+          <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <div id="colorPalette" class="flex items-center gap-1.5"></div>
+            <div class="flex items-center gap-2">
+              <button id="undoBtn" type="button" class="btn-3d px-3 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-black text-xs sm:text-sm">↩️ 復原</button>
+              <button id="clearBtn" type="button" class="btn-3d px-3 py-2 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-800 font-black text-xs sm:text-sm">🧹 清除</button>
+              <button id="doneBtn" type="button" class="btn-3d px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-500 text-white border-b-4 border-emerald-700 font-black text-xs sm:text-sm shadow-sm">🌟 我寫好了！</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右側：互動點數十格陣＋語音朗讀卡 (5 欄) -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="bg-white rounded-[2rem] p-4 sm:p-5 shadow-lg border-4 border-amber-200 space-y-4">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <span class="text-xs font-black px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-200">👆 互動點一點數一數</span>
+                <h2 id="countCardTitle" class="text-xl font-black text-amber-950 mt-2">1 顆蘋果</h2>
+              </div>
+              <div class="flex gap-1.5">
+                <button id="speakZhBtn" type="button" class="btn-3d px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 text-white font-black text-xs shadow-sm">🔊 中文</button>
+                <button id="speakEnBtn" type="button" class="btn-3d px-3 py-2 rounded-xl bg-sky-400 hover:bg-sky-500 text-white font-black text-xs shadow-sm">🔤 英文</button>
+              </div>
+            </div>
+
+            <!-- 十格陣（0～10 為 2×5，11～12 自動延伸第 3 列） -->
+            <div id="tenFrameGrid" class="grid grid-cols-5 gap-2 bg-amber-50/80 p-3 rounded-2xl border-2 border-amber-200"></div>
+
+            <div class="flex items-center justify-between text-xs font-bold text-amber-900/80 bg-amber-50 px-3 py-2 rounded-xl">
+              <span id="numTipText">1 像直直的鉛筆，從上往下畫！</span>
+            </div>
+          </div>
+
+          <!-- 連結到魔法時鐘提示卡 -->
+          <div class="bg-gradient-to-br from-violet-100 to-fuchsia-100 rounded-[2rem] p-4 sm:p-5 border-4 border-violet-200 flex items-center justify-between gap-3">
+            <div>
+              <div class="text-sm font-black text-violet-950">🕐 看看這個數字在時鐘的哪裡！</div>
+              <p class="text-xs text-violet-800/80 font-bold mt-0.5">學會 1～12 就能輕鬆看懂時鐘幾點鐘喔！</p>
+            </div>
+            <button id="jumpToClockTabBtn" type="button"
+              class="btn-3d px-3.5 py-2 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white font-black text-xs sm:text-sm shrink-0 shadow-sm">
+              撥時鐘 →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 0～12 快速選號格 -->
+      <div class="bg-white rounded-[2rem] p-4 sm:p-5 shadow-lg border-4 border-emerald-200/80">
+        <h2 class="text-base sm:text-lg font-black text-emerald-950 mb-3">📚 選擇數字（0 ～ 12，涵蓋時鐘全部數字）</h2>
+        <div id="numberGrid" class="grid grid-cols-5 sm:grid-cols-7 lg:grid-cols-13 gap-2"></div>
+      </div>
+    </section>
+
+    <!-- ========== 分頁 2：🕐 互動魔法時鐘 ========== -->
+    <section id="tabClockSection" class="hidden"></section>
+
+    <!-- ========== 分頁 3：🎮 數字與時鐘遊樂園 ========== -->
+    <section id="tabGamesSection" class="hidden"></section>
+
+    <!-- ========== 分頁 4：⏱️ 看得見的時間派 ========== -->
+    <section id="tabTimerSection" class="hidden"></section>
+
+  </main>
+
+  <script src="./strokes-db.js?v=1"></script>
+  <script src="./clock.js?v=1"></script>
+  <script src="./games.js?v=1"></script>
+  <script>
+    const STORAGE_KEY = 'numbers_practice_progress_v1';
+    const BRUSH_COLORS = [
+      { id: 'violet', hex: '#7C3AED', isRainbow: false },
+      { id: 'rose',   hex: '#F43F5E', isRainbow: false },
+      { id: 'sky',    hex: '#0EA5E9', isRainbow: false },
+      { id: 'green',  hex: '#10B981', isRainbow: false },
+      { id: 'orange', hex: '#F97316', isRainbow: false },
+      { id: 'rainbow', hex: 'rainbow', isRainbow: true }
+    ];
+
+    const state = {
+      activeTab: 'write',
+      currentIdx: 1, // 預設從數字 1 開始
+      completedSet: new Set(),
+      practiceMode: 'guide', // 'guide' | 'trace' | 'memory'
+      templateOpacity: 0.26,
+      brushColor: BRUSH_COLORS[0],
+      rainbowHue: 0,
+      freeStrokes: [],
+      guidedStep: 0,
+      guidedCompleted: [],
+      isAnimating: false,
+      animStrokeIdx: 0,
+      animProgress: 0,
+      animPauseUntil: 0,
+      animLastTs: 0,
+      pulsePhase: 0,
+      isDrawing: false,
+      currentPointerStroke: null,
+      countedInCard: new Set()
+    };
+
+    const canvas = document.getElementById('numberCanvas');
+    const ctx = canvas.getContext('2d');
+    const confettiCanvas = document.getElementById('confettiCanvas');
+    const confettiCtx = confettiCanvas.getContext('2d');
+
+    const progressText = document.getElementById('progressText');
+    const progressBar = document.getElementById('progressBar');
+    const currentNumHeader = document.getElementById('currentNumHeader');
+    const currentNumZh = document.getElementById('currentNumZh');
+    const currentStarStatus = document.getElementById('currentStarStatus');
+    const countCardTitle = document.getElementById('countCardTitle');
+    const tenFrameGrid = document.getElementById('tenFrameGrid');
+    const numTipText = document.getElementById('numTipText');
+    const numberGrid = document.getElementById('numberGrid');
+    const colorPalette = document.getElementById('colorPalette');
+    const strokeStepBadge = document.getElementById('strokeStepBadge');
+    const canvasToast = document.getElementById('canvasToast');
+    const playStrokeAnimBtn = document.getElementById('playStrokeAnimBtn');
+    const playStrokeAnimIcon = document.getElementById('playStrokeAnimIcon');
+    const playStrokeAnimText = document.getElementById('playStrokeAnimText');
+
+    let audioCtx = null;
+    let toastTimer = null;
+    let clockInstance = null;
+    let timerInstance = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) audioCtx = new AC();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }
+
+    function playSoftPop() {
+      try {
+        const ac = getAudioContext();
+        if (!ac) return;
+        const now = ac.currentTime;
+        const osc = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(520, now);
+        osc.frequency.exponentialRampToValueAtTime(700, now + 0.055);
+        gain.gain.setValueAtTime(0.07, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+        osc.connect(gain); gain.connect(ac.destination);
+        osc.start(now); osc.stop(now + 0.07);
+      } catch {}
+    }
+
+    function playStrokeDing(stepIdx = 0) {
+      try {
+        const ac = getAudioContext();
+        if (!ac) return;
+        const now = ac.currentTime;
+        const scale = [587.33, 659.25, 783.99, 880.00, 1046.50];
+        const osc = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(scale[stepIdx % scale.length], now);
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.exponentialRampToValueAtTime(0.22, now + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+        osc.connect(gain); gain.connect(ac.destination);
+        osc.start(now); osc.stop(now + 0.35);
+      } catch {}
+    }
+
+    function playRewardSound() {
+      try {
+        const ac = getAudioContext();
+        if (!ac) return;
+        const now = ac.currentTime;
+        [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+          const osc = ac.createOscillator();
+          const gain = ac.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.085);
+          gain.gain.setValueAtTime(0.001, now + idx * 0.085);
+          gain.gain.exponentialRampToValueAtTime(0.22, now + idx * 0.085 + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.085 + 0.4);
+          osc.connect(gain); gain.connect(ac.destination);
+          osc.start(now + idx * 0.085); osc.stop(now + idx * 0.085 + 0.42);
+        });
+      } catch {}
+    }
+
+    function speakText(text, lang = 'zh-TW') {
+      if (!('speechSynthesis' in window)) return;
+      try {
+        window.speechSynthesis.cancel();
+        const utt = new SpeechSynthesisUtterance(text);
+        utt.lang = lang;
+        utt.rate = 0.88;
+        utt.pitch = 1.06;
+        const voices = window.speechSynthesis.getVoices();
+        const match = voices.find((v) => v.lang && v.lang.toLowerCase().includes(lang.toLowerCase()));
+        if (match) utt.voice = match;
+        window.speechSynthesis.speak(utt);
+      } catch {}
+    }
+
+    function speakZh(text) { speakText(text, 'zh-TW'); }
+    function speakEn(text) { speakText(text, 'en-US'); }
+
+    function showToast(msg) {
+      canvasToast.textContent = msg;
+      canvasToast.classList.remove('opacity-0');
+      canvasToast.classList.add('opacity-100');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        canvasToast.classList.remove('opacity-100');
+        canvasToast.classList.add('opacity-0');
+      }, 2200);
+    }
+
+    function launchConfetti() {
+      confettiCanvas.width = window.innerWidth;
+      confettiCanvas.height = window.innerHeight;
+      const colors = ['#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#0EA5E9'];
+      const particles = Array.from({ length: 80 }, () => ({
+        x: window.innerWidth * (0.2 + Math.random() * 0.6),
+        y: -20 - Math.random() * 80,
+        vx: (Math.random() - 0.5) * 7,
+        vy: 3 + Math.random() * 4,
+        w: 8 + Math.random() * 6,
+        h: 6 + Math.random() * 4,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rot: Math.random() * 360,
+        vRot: (Math.random() - 0.5) * 12,
+        life: 1
+      }));
+      function frame() {
+        confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+        let alive = false;
+        for (const p of particles) {
+          if (p.life <= 0) continue;
+          alive = true;
+          p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.rot += p.vRot;
+          if (p.y > window.innerHeight * 0.75) p.life -= 0.03;
+          confettiCtx.save();
+          confettiCtx.globalAlpha = Math.max(0, p.life);
+          confettiCtx.translate(p.x, p.y);
+          confettiCtx.rotate((p.rot * Math.PI) / 180);
+          confettiCtx.fillStyle = p.color;
+          confettiCtx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+          confettiCtx.restore();
+        }
+        if (alive) requestAnimationFrame(frame);
+        else confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function loadProgress() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const arr = JSON.parse(raw);
+          if (Array.isArray(arr)) state.completedSet = new Set(arr);
+        }
+      } catch {}
+    }
+    function saveProgress() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(state.completedSet))); } catch {}
+    }
+
+    function updateProgressUI() {
+      const done = state.completedSet.size;
+      progressText.textContent = `${done} / 13`;
+      progressBar.style.width = `${Math.round((done / 13) * 100)}%`;
+    }
+
+    // =========================================================================
+    // 畫布與向量筆順引擎
+    // =========================================================================
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width < 20) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      redrawCanvas();
+    }
+
+    function getCurrentStrokes(w, h) {
+      const item = window.NumbersDB.NUMBERS_LIST[state.currentIdx];
+      return window.NumbersDB.getNumberCanvasStrokes(item.num, w, h);
+    }
+
+    function resamplePath(pts, stepPx = 4) {
+      if (!pts || pts.length <= 1) return pts ? [...pts] : [];
+      const out = [pts[0]];
+      let acc = 0;
+      for (let i = 1; i < pts.length; i++) {
+        let p0 = pts[i - 1], p1 = pts[i];
+        let segLen = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+        if (segLen < 0.001) continue;
+        while (acc + segLen >= stepPx) {
+          const t = (stepPx - acc) / segLen;
+          const np = { x: p0.x + (p1.x - p0.x) * t, y: p0.y + (p1.y - p0.y) * t };
+          out.push(np);
+          p0 = np;
+          segLen = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+          acc = 0;
+        }
+        acc += segLen;
+      }
+      out.push(pts[pts.length - 1]);
+      return out;
+    }
+
+    function drawGuideGrid(w, h) {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, w, h);
+      const pad = Math.min(w, h) * 0.06;
+      ctx.save();
+      ctx.strokeStyle = '#DDD6FE';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([7, 7]);
+      ctx.beginPath();
+      ctx.moveTo(w / 2, pad); ctx.lineTo(w / 2, h - pad);
+      ctx.moveTo(pad, h / 2); ctx.lineTo(w - pad, h / 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.strokeStyle = '#C4B5FD';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(pad, pad, w - pad * 2, h - pad * 2);
+      ctx.restore();
+    }
+
+    function drawVectorStroke(st, opts = {}) {
+      const { color = '#CBD5E1', lineWidth = 16, dashed = false, progress = 1, isRainbow = false, startHue = 0, glow = false } = opts;
+      const sampled = resamplePath(st.points, 3.5);
+      const maxIdx = Math.max(1, Math.floor((sampled.length - 1) * Math.min(1, Math.max(0.02, progress))));
+      const sub = sampled.slice(0, maxIdx + 1);
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = lineWidth;
+      if (dashed) ctx.setLineDash([10, 8]);
+      if (glow) { ctx.shadowColor = 'rgba(249,115,22,0.35)'; ctx.shadowBlur = 10; }
+      if (!isRainbow) {
+        ctx.strokeStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(sub[0].x, sub[0].y);
+        for (let i = 1; i < sub.length - 1; i++) {
+          ctx.quadraticCurveTo(sub[i].x, sub[i].y, (sub[i].x + sub[i + 1].x) / 2, (sub[i].y + sub[i + 1].y) / 2);
+        }
+        ctx.lineTo(sub[sub.length - 1].x, sub[sub.length - 1].y);
+        ctx.stroke();
+      } else {
+        for (let i = 1; i < sub.length; i++) {
+          ctx.strokeStyle = `hsl(${(startHue + i * 3.5) % 360}, 90%, 55%)`;
+          ctx.beginPath();
+          ctx.moveTo(sub[i - 1].x, sub[i - 1].y);
+          ctx.lineTo(sub[i].x, sub[i].y);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+      return sub[sub.length - 1];
+    }
+
+    function drawArrows(st, h, color, highlight) {
+      const sampled = resamplePath(st.points, 4);
+      if (sampled.length < 5) return;
+      const arrowSize = highlight ? Math.max(8, h * 0.032) : Math.max(6, h * 0.024);
+      [0.35, 0.72].forEach((frac) => {
+        const idx = Math.min(sampled.length - 2, Math.max(1, Math.floor(sampled.length * frac)));
+        const ang = Math.atan2(sampled[idx + 1].y - sampled[idx - 1].y, sampled[idx + 1].x - sampled[idx - 1].x);
+        ctx.save();
+        ctx.translate(sampled[idx].x, sampled[idx].y);
+        ctx.rotate(ang);
+        ctx.fillStyle = color;
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(arrowSize, 0);
+        ctx.lineTo(-arrowSize * 0.75, -arrowSize * 0.65);
+        ctx.lineTo(-arrowSize * 0.35, 0);
+        ctx.lineTo(-arrowSize * 0.75, arrowSize * 0.65);
+        ctx.closePath();
+        ctx.stroke(); ctx.fill();
+        ctx.restore();
+      });
+    }
+
+    function drawStartBadge(pt, num, h, { pulse = false, active = false, bg = '#F97316' }) {
+      const baseR = active ? Math.max(12, h * 0.046) : Math.max(9, h * 0.033);
+      const r = pulse ? baseR * (1 + Math.sin(state.pulsePhase) * 0.14) : baseR;
+      ctx.save();
+      if (pulse) {
+        ctx.fillStyle = 'rgba(249,115,22,0.24)';
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, baseR * (1.45 + Math.sin(state.pulsePhase) * 0.3), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = bg;
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = `900 ${Math.round(r * 1.25)}px "Zen Maru Gothic", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(num), pt.x, pt.y + 0.5);
+      ctx.restore();
+    }
+
+    function drawUserStroke(st, w, h) {
+      const pts = st.points;
+      if (!pts || pts.length === 0) return;
+      const lw = Math.min(w, h) * 0.048;
+      ctx.save();
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = lw;
+      if (pts.length === 1) {
+        ctx.fillStyle = st.isRainbow ? `hsl(${st.startHue},90%,55%)` : st.color;
+        ctx.beginPath(); ctx.arc(pts[0].x * w, pts[0].y * h, lw / 2, 0, Math.PI * 2); ctx.fill();
+        ctx.restore(); return;
+      }
+      if (!st.isRainbow) {
+        ctx.strokeStyle = st.color;
+        ctx.beginPath(); ctx.moveTo(pts[0].x * w, pts[0].y * h);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x * w, pts[i].y * h);
+        ctx.stroke();
+      } else {
+        for (let i = 1; i < pts.length; i++) {
+          ctx.strokeStyle = `hsl(${(st.startHue + i * 4.5) % 360}, 90%, 55%)`;
+          ctx.beginPath(); ctx.moveTo(pts[i - 1].x * w, pts[i - 1].y * h); ctx.lineTo(pts[i].x * w, pts[i].y * h); ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+
+    function evaluateGuided(userNormPts, targetStroke, w, h) {
+      const userPts = userNormPts.map((p) => ({ x: p.x * w, y: p.y * h }));
+      const sampled = resamplePath(targetStroke.points, 5);
+      const tol = Math.max(28, Math.min(w, h) * 0.115);
+      if (Math.hypot(userPts[0].x - sampled[0].x, userPts[0].y - sampled[0].y) > tol * 1.5) {
+        return { passed: false, reason: `請從數字 ${state.guidedStep + 1} 圓圈起點開始寫喔！` };
+      }
+      let covered = 0;
+      for (const tp of sampled) {
+        if (userPts.some((up) => Math.hypot(up.x - tp.x, up.y - tp.y) <= tol)) covered++;
+      }
+      const endDist = Math.hypot(userPts[userPts.length - 1].x - sampled[sampled.length - 1].x, userPts[userPts.length - 1].y - sampled[sampled.length - 1].y);
+      if (covered / sampled.length >= 0.56 && endDist <= tol * 1.55) {
+        return { passed: true, reason: '' };
+      }
+      return { passed: false, reason: '再沿著橘色箭頭慢慢畫到終點看看喔！' };
+    }
+
+    function updateStrokeBadge() {
+      const rect = canvas.getBoundingClientRect();
+      const total = getCurrentStrokes(rect.width || 400, rect.height || 300).length;
+      if (state.isAnimating) {
+        strokeStepBadge.textContent = `示範中：第 ${Math.min(state.animStrokeIdx + 1, total)} / ${total} 筆`;
+      } else if (state.practiceMode === 'guide') {
+        strokeStepBadge.textContent = state.guidedStep >= total ? `✨ 全部 ${total} 筆完成！` : `第 ${state.guidedStep + 1} / ${total} 筆`;
+      } else {
+        strokeStepBadge.textContent = `共 ${total} 筆`;
+      }
+    }
+
+    function stopAnim() {
+      state.isAnimating = false;
+      state.animStrokeIdx = 0;
+      state.animProgress = 0;
+      playStrokeAnimIcon.textContent = '▶️';
+      playStrokeAnimText.textContent = '看筆順示範';
+      updateStrokeBadge();
+    }
+
+    function redrawCanvas(ts) {
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width, h = rect.height;
+      if (!w || !h) return;
+      state.pulsePhase = (ts || performance.now()) * 0.0055;
+      drawGuideGrid(w, h);
+      const strokes = getCurrentStrokes(w, h);
+      const baseW = Math.max(13, h * 0.052);
+
+      if (state.isAnimating && strokes.length > 0) {
+        const now = ts || performance.now();
+        const dt = Math.min(80, Math.max(0, now - (state.animLastTs || now)));
+        state.animLastTs = now;
+        if (now >= state.animPauseUntil) {
+          state.animProgress += dt * 0.0012;
+          if (state.animProgress >= 1) {
+            state.animProgress = 0;
+            state.animStrokeIdx++;
+            state.animPauseUntil = now + 260;
+            if (state.animStrokeIdx >= strokes.length) stopAnim();
+            else updateStrokeBadge();
+          }
+        }
+        strokes.forEach((st) => drawVectorStroke(st, { color: 'rgba(148,163,184,0.22)', lineWidth: baseW }));
+        for (let i = 0; i < Math.min(state.animStrokeIdx, strokes.length); i++) {
+          drawVectorStroke(strokes[i], { color: '#7C3AED', lineWidth: baseW });
+          drawStartBadge(strokes[i].points[0], i + 1, h, { bg: '#8B5CF6' });
+        }
+        if (state.isAnimating && state.animStrokeIdx < strokes.length) {
+          const curr = strokes[state.animStrokeIdx];
+          drawArrows(curr, h, '#C4B5FD', false);
+          const tip = drawVectorStroke(curr, { color: '#F97316', lineWidth: baseW * 1.08, progress: state.animProgress, glow: true });
+          drawStartBadge(curr.points[0], state.animStrokeIdx + 1, h, { active: true, bg: '#F97316' });
+          if (tip) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(251,146,60,0.35)';
+            ctx.beginPath(); ctx.arc(tip.x, tip.y, h * 0.055, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#FFF7ED'; ctx.strokeStyle = '#EA580C'; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(tip.x, tip.y, h * 0.025, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            ctx.restore();
+          }
+        }
+        return;
+      }
+
+      if (state.practiceMode === 'guide') {
+        strokes.forEach((st) => drawVectorStroke(st, { color: `rgba(148,163,184,${state.templateOpacity})`, lineWidth: baseW }));
+        state.guidedCompleted.forEach((rec) => {
+          const st = strokes[rec.idx];
+          if (st) drawVectorStroke(st, { color: rec.color, isRainbow: rec.isRainbow, startHue: rec.startHue, lineWidth: baseW });
+        });
+        if (state.guidedStep < strokes.length) {
+          const active = strokes[state.guidedStep];
+          drawVectorStroke(active, { color: '#F97316', lineWidth: baseW * 0.9, dashed: true, glow: true });
+          drawArrows(active, h, '#EA580C', true);
+          drawStartBadge(active.points[0], state.guidedStep + 1, h, { pulse: true, active: true, bg: '#F97316' });
+        }
+        if (state.currentPointerStroke) drawUserStroke(state.currentPointerStroke, w, h);
+        return;
+      }
+
+      if (state.practiceMode === 'trace') {
+        strokes.forEach((st, i) => {
+          drawVectorStroke(st, { color: `rgba(148,163,184,${state.templateOpacity})`, lineWidth: baseW });
+          drawArrows(st, h, 'rgba(139,92,246,0.7)', false);
+          drawStartBadge(st.points[0], i + 1, h, { bg: '#8B5CF6' });
+        });
+      }
+      state.freeStrokes.forEach((st) => drawUserStroke(st, w, h));
+      if (state.currentPointerStroke) drawUserStroke(state.currentPointerStroke, w, h);
+    }
+
+    let rafId = null;
+    function ensureLoop() {
+      if (rafId !== null) return;
+      function loop(ts) {
+        if (state.activeTab !== 'write' || (!state.isAnimating && state.practiceMode !== 'guide')) {
+          rafId = null; return;
+        }
+        redrawCanvas(ts);
+        rafId = requestAnimationFrame(loop);
+      }
+      rafId = requestAnimationFrame(loop);
+    }
+
+    // 畫布手寫事件
+    function getNormPt(e) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)),
+        y: Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height))
+      };
+    }
+
+    canvas.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (state.isAnimating) stopAnim();
+      canvas.setPointerCapture(e.pointerId);
+      state.isDrawing = true;
+      state.rainbowHue = (state.rainbowHue + 40) % 360;
+      state.currentPointerStroke = {
+        points: [getNormPt(e)],
+        color: state.brushColor.hex,
+        isRainbow: state.brushColor.isRainbow,
+        startHue: state.rainbowHue
+      };
+      redrawCanvas();
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (!state.isDrawing || !state.currentPointerStroke) return;
+      e.preventDefault();
+      const pt = getNormPt(e);
+      const pts = state.currentPointerStroke.points;
+      if (Math.hypot(pt.x - pts[pts.length - 1].x, pt.y - pts[pts.length - 1].y) > 0.004) {
+        pts.push(pt);
+        redrawCanvas();
+      }
+    });
+    function finishStroke() {
+      if (!state.isDrawing) return;
+      state.isDrawing = false;
+      const finished = state.currentPointerStroke;
+      state.currentPointerStroke = null;
+      if (finished && finished.points.length > 0) {
+        if (state.practiceMode === 'guide') {
+          const rect = canvas.getBoundingClientRect();
+          const strokes = getCurrentStrokes(rect.width, rect.height);
+          if (state.guidedStep < strokes.length) {
+            const res = evaluateGuided(finished.points, strokes[state.guidedStep], rect.width, rect.height);
+            if (res.passed) {
+              state.guidedCompleted.push({ idx: state.guidedStep, color: finished.color, isRainbow: finished.isRainbow, startHue: finished.startHue });
+              playStrokeDing(state.guidedStep);
+              state.guidedStep++;
+              updateStrokeBadge();
+              if (state.guidedStep >= strokes.length) completeCurrentNumber();
+            } else {
+              showToast(res.reason);
+            }
+          }
+        } else {
+          state.freeStrokes.push(finished);
+        }
+      }
+      redrawCanvas();
+    }
+    canvas.addEventListener('pointerup', finishStroke);
+    canvas.addEventListener('pointercancel', finishStroke);
+
+    function completeCurrentNumber() {
+      const item = window.NumbersDB.NUMBERS_LIST[state.currentIdx];
+      state.completedSet.add(item.num);
+      saveProgress();
+      updateProgressUI();
+      renderNumberGrid();
+      currentStarStatus.classList.remove('hidden');
+      playRewardSound();
+      launchConfetti();
+      showToast(`⭐ 太棒了！你學會寫數字「${item.num}」囉！`);
+      speakZh(`好棒喔，這是數字 ${item.num}`);
+    }
+
+    // =========================================================================
+    // 互動十格陣卡片與 0～12 選號列
+    // =========================================================================
+    function renderTenFrame() {
+      const item = window.NumbersDB.NUMBERS_LIST[state.currentIdx];
+      state.countedInCard.clear();
+      countCardTitle.textContent = `${item.num} ${item.itemName}`;
+      numTipText.textContent = `💡 ${item.tip}`;
+
+      const totalCells = item.num > 10 ? 15 : 10;
+      tenFrameGrid.innerHTML = Array.from({ length: totalCells }, (_, i) => {
+        const hasObj = i < item.num;
+        if (!hasObj) {
+          return `<div class="aspect-square rounded-xl border-2 border-dashed border-amber-200 bg-white/60"></div>`;
+        }
+        return `
+          <button type="button" data-tf-idx="${i}"
+            class="relative btn-3d aspect-square rounded-xl border-2 border-amber-300 bg-white hover:bg-amber-50 flex items-center justify-center text-2xl sm:text-3xl shadow-sm">
+            <span>${item.emoji}</span>
+            <span class="tf-num hidden absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-violet-600 text-white text-[11px] font-black flex items-center justify-center"></span>
+          </button>`;
+      }).join('');
+    }
+
+    tenFrameGrid.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-tf-idx]');
+      if (!btn) return;
+      const idx = Number(btn.dataset.tfIdx);
+      if (state.countedInCard.has(idx)) return;
+      state.countedInCard.add(idx);
+      const count = state.countedInCard.size;
+      btn.classList.add('ring-4', 'ring-violet-300', 'bg-violet-50');
+      const badge = btn.querySelector('.tf-num');
+      badge.textContent = String(count);
+      badge.classList.remove('hidden');
+      playStrokeDing(count - 1);
+      speakZh(String(count));
+    });
+
+    function renderColorPalette() {
+      colorPalette.innerHTML = BRUSH_COLORS.map((c) => {
+        const sel = state.brushColor.id === c.id;
+        return `<button type="button" data-cid="${c.id}" class="btn-3d w-8 h-8 rounded-full border-2 border-white shadow ${c.isRainbow ? 'rainbow-bg' : ''} ${sel ? 'ring-2 ring-violet-500 scale-110' : ''}" style="${c.isRainbow ? '' : `background:${c.hex}`}"></button>`;
+      }).join('');
+    }
+
+    colorPalette.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-cid]');
+      if (!btn) return;
+      const found = BRUSH_COLORS.find((c) => c.id === btn.dataset.cid);
+      if (found) { state.brushColor = found; playSoftPop(); renderColorPalette(); }
+    });
+
+    function renderNumberGrid() {
+      numberGrid.innerHTML = window.NumbersDB.NUMBERS_LIST.map((item, idx) => {
+        const isCurrent = idx === state.currentIdx;
+        const isDone = state.completedSet.has(item.num);
+        return `
+          <button type="button" data-nidx="${idx}"
+            class="btn-3d relative py-2 rounded-2xl border-2 font-abc text-xl sm:text-2xl font-black ${
+              isCurrent ? 'bg-violet-500 text-white border-violet-600 ring-4 ring-violet-200 scale-105' : 'bg-violet-50 text-violet-900 border-violet-200 hover:bg-violet-100'
+            }">
+            ${item.num}
+            ${isDone ? '<span class="absolute -top-2 -right-1.5 text-sm">⭐</span>' : ''}
+          </button>`;
+      }).join('');
+    }
+
+    numberGrid.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-nidx]');
+      if (!btn) return;
+      playSoftPop();
+      selectNumber(Number(btn.dataset.nidx));
+    });
+
+    function selectNumber(idx) {
+      const list = window.NumbersDB.NUMBERS_LIST;
+      state.currentIdx = (idx + list.length) % list.length;
+      state.freeStrokes = [];
+      state.guidedStep = 0;
+      state.guidedCompleted = [];
+      stopAnim();
+
+      const item = list[state.currentIdx];
+      currentNumHeader.textContent = String(item.num);
+      currentNumZh.textContent = `${item.zh} · ${item.en}`;
+      currentStarStatus.classList.toggle('hidden', !state.completedSet.has(item.num));
+      renderTenFrame();
+      renderNumberGrid();
+      updateStrokeBadge();
+      redrawCanvas();
+      ensureLoop();
+    }
+
+    // 主分頁切換
+    const sections = {
+      write: document.getElementById('tabWriteSection'),
+      clock: document.getElementById('tabClockSection'),
+      games: document.getElementById('tabGamesSection'),
+      timer: document.getElementById('tabTimerSection')
+    };
+
+    function switchTab(tab) {
+      state.activeTab = tab;
+      stopAnim();
+      Object.entries(sections).forEach(([k, sec]) => sec.classList.toggle('hidden', k !== tab));
+      document.querySelectorAll('.main-tab-btn').forEach((btn) => {
+        const active = btn.dataset.tab === tab;
+        btn.className = active
+          ? 'main-tab-btn btn-3d py-2.5 px-3 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center gap-1.5 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white border-b-4 border-fuchsia-700 shadow-sm'
+          : 'main-tab-btn btn-3d py-2.5 px-3 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center gap-1.5 bg-violet-50 hover:bg-violet-100 text-violet-900 border-b-4 border-violet-200';
+      });
+
+      if (tab === 'write') {
+        requestAnimationFrame(() => { resizeCanvas(); ensureLoop(); });
+      } else if (tab === 'clock') {
+        if (!clockInstance) clockInstance = window.NumbersClock.mountMagicClock(sections.clock);
+        else requestAnimationFrame(() => clockInstance.resize());
+      } else if (tab === 'games') {
+        window.NumbersGames.onEnter();
+      } else if (tab === 'timer') {
+        if (!timerInstance) timerInstance = window.NumbersClock.mountTimePie(sections.timer);
+        else requestAnimationFrame(() => timerInstance.resize());
+      }
+      if (tab !== 'games') window.NumbersGames.onLeave();
+    }
+
+    document.querySelectorAll('.main-tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => { playSoftPop(); switchTab(btn.dataset.tab); });
+    });
+    document.getElementById('jumpToClockTabBtn').addEventListener('click', () => { playSoftPop(); switchTab('clock'); });
+
+    // 控制事件
+    document.getElementById('prevNumBtn').addEventListener('click', () => { playSoftPop(); selectNumber(state.currentIdx - 1); });
+    document.getElementById('nextNumBtn').addEventListener('click', () => { playSoftPop(); selectNumber(state.currentIdx + 1); });
+    document.getElementById('speakZhBtn').addEventListener('click', () => {
+      const it = window.NumbersDB.NUMBERS_LIST[state.currentIdx];
+      speakZh(`${it.num}，${it.num}${it.itemName}`);
+    });
+    document.getElementById('speakEnBtn').addEventListener('click', () => {
+      const it = window.NumbersDB.NUMBERS_LIST[state.currentIdx];
+      speakEn(it.en);
+    });
+
+    playStrokeAnimBtn.addEventListener('click', () => {
+      playSoftPop();
+      if (state.isAnimating) { stopAnim(); redrawCanvas(); }
+      else {
+        state.isAnimating = true;
+        state.animStrokeIdx = 0; state.animProgress = 0; state.animPauseUntil = 0; state.animLastTs = performance.now();
+        playStrokeAnimIcon.textContent = '⏹️';
+        playStrokeAnimText.textContent = '停止示範';
+        updateStrokeBadge();
+        ensureLoop();
+      }
+    });
+
+    document.querySelectorAll('.mode-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        playSoftPop();
+        state.practiceMode = btn.dataset.mode;
+        state.freeStrokes = []; state.guidedStep = 0; state.guidedCompleted = [];
+        stopAnim();
+        document.querySelectorAll('.mode-btn').forEach((b) => {
+          const active = b.dataset.mode === state.practiceMode;
+          b.className = active
+            ? 'mode-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-black bg-violet-500 text-white shadow-sm'
+            : 'mode-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold text-violet-900 hover:bg-violet-100';
+        });
+        updateStrokeBadge();
+        redrawCanvas();
+        ensureLoop();
+      });
+    });
+
+    document.getElementById('opacitySlider').addEventListener('input', (e) => {
+      state.templateOpacity = Number(e.target.value) / 100;
+      redrawCanvas();
+    });
+    document.getElementById('undoBtn').addEventListener('click', () => {
+      playSoftPop();
+      if (state.practiceMode === 'guide' && state.guidedCompleted.length > 0) {
+        state.guidedCompleted.pop(); state.guidedStep = Math.max(0, state.guidedStep - 1); updateStrokeBadge();
+      } else if (state.freeStrokes.length > 0) {
+        state.freeStrokes.pop();
+      }
+      redrawCanvas();
+    });
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      playSoftPop(); stopAnim(); state.freeStrokes = []; state.guidedStep = 0; state.guidedCompleted = []; updateStrokeBadge(); redrawCanvas(); ensureLoop();
+    });
+    document.getElementById('doneBtn').addEventListener('click', () => {
+      const has = state.practiceMode === 'guide' ? state.guidedCompleted.length > 0 : state.freeStrokes.length > 0;
+      if (!has) { showToast('先寫寫看數字再按完成喔！✏️'); return; }
+      completeCurrentNumber();
+    });
+    document.getElementById('resetProgressBtn').addEventListener('click', () => {
+      if (!confirm('確定要清除所有 0～12 數字練習星星紀錄嗎？')) return;
+      state.completedSet.clear(); saveProgress(); updateProgressUI(); selectNumber(state.currentIdx);
+    });
+
+    window.NumbersApp = { playSoftPop, playStrokeDing, playRewardSound, speakZh, speakEn, launchConfetti };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadProgress();
+      updateProgressUI();
+      renderColorPalette();
+      window.NumbersGames.init(sections.games);
+      selectNumber(1);
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+    });
+  </script>
+</body>
+</html>

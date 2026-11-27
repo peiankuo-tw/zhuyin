@@ -60,7 +60,7 @@
 
   <!-- 主要入口卡片區 -->
   <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-6">
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-7">
 
       <!-- 卡片 1：快樂學注音 -->
       <a href="./zhuyin/"
@@ -145,6 +145,49 @@
         <div class="flex items-center justify-between text-indigo-600 font-black text-base sm:text-lg">
           <span>進入英文小教室</span>
           <span class="w-9 h-9 rounded-2xl bg-sky-100 group-hover:bg-indigo-500 group-hover:text-white flex items-center justify-center transition-colors">→</span>
+        </div>
+      </a>
+
+      <!-- 卡片 3：快樂學數字與時鐘 -->
+      <a href="./numbers/"
+        class="card-3d group block rounded-3xl bg-white border-4 border-violet-200 hover:border-violet-400 shadow-[0_8px_0_0_#DDD6FE] hover:shadow-[0_12px_0_0_#C4B5FD] p-6 sm:p-8 focus:outline-none focus:ring-4 focus:ring-violet-300">
+        <div class="flex items-start justify-between gap-4 mb-5">
+          <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-gradient-to-br from-violet-400 to-fuchsia-500 flex items-center justify-center text-3xl sm:text-4xl shadow-md border-4 border-white shrink-0 group-hover:rotate-3 transition-transform">
+            🔢
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-black bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-200">
+            幼兒園中班・數感時間
+          </span>
+        </div>
+
+        <h2 class="text-2xl sm:text-3xl font-black text-violet-950 mb-2 group-hover:text-fuchsia-600 transition-colors">
+          快樂學數字・時鐘小教室
+        </h2>
+        <p class="text-sm sm:text-base text-stone-600 font-medium leading-relaxed mb-5">
+          0～12 數字筆順與互動十格陣數數、動手撥魔法時鐘看一天作息、4 款時鐘數字遊戲，還有看得見時間縮小的彩色時間派！
+        </p>
+
+        <!-- 標籤 -->
+        <div class="flex flex-wrap gap-2 mb-5">
+          <span class="px-2.5 py-1 rounded-xl bg-violet-50 text-violet-800 border border-violet-200 text-xs font-bold">0～12 筆順＋十格陣</span>
+          <span class="px-2.5 py-1 rounded-xl bg-violet-50 text-violet-800 border border-violet-200 text-xs font-bold">🕐 互動魔法時鐘</span>
+          <span class="px-2.5 py-1 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold">⏱️ 彩色時間派</span>
+        </div>
+
+        <!-- 進度條（讀取 numbers_practice_progress_v1） -->
+        <div class="bg-violet-50/90 rounded-2xl p-3.5 border border-violet-200/80 mb-5">
+          <div class="flex justify-between items-center text-xs sm:text-sm font-bold text-violet-900 mb-1.5">
+            <span>⭐ 數字收集進度</span>
+            <span id="numbersProgressText">0 / 13</span>
+          </div>
+          <div class="w-full h-2.5 bg-white rounded-full overflow-hidden border border-violet-200/70">
+            <div id="numbersProgressBar" class="h-full bg-gradient-to-r from-violet-400 via-fuchsia-400 to-rose-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between text-fuchsia-600 font-black text-base sm:text-lg">
+          <span>進入數字與時鐘小教室</span>
+          <span class="w-9 h-9 rounded-2xl bg-violet-100 group-hover:bg-fuchsia-500 group-hover:text-white flex items-center justify-center transition-colors">→</span>
         </div>
       </a>
 
@@ -237,7 +280,25 @@
         console.warn('無法讀取英文進度：', err);
       }
 
-      // 3. 讀取國小生字練習進度 (hanzi_practice_progress_v1)
+      // 3. 讀取數字與時鐘練習進度 (numbers_practice_progress_v1)
+      try {
+        const rawNum = localStorage.getItem('numbers_practice_progress_v1');
+        if (rawNum) {
+          const arr = JSON.parse(rawNum);
+          if (Array.isArray(arr)) {
+            const count = Math.min(arr.length, 13);
+            const pct = Math.round((count / 13) * 100);
+            const textEl = document.getElementById('numbersProgressText');
+            const barEl = document.getElementById('numbersProgressBar');
+            if (textEl) textEl.textContent = `${count} / 13`;
+            if (barEl) barEl.style.width = `${pct}%`;
+          }
+        }
+      } catch (err) {
+        console.warn('無法讀取數字進度：', err);
+      }
+
+      // 4. 讀取國小生字練習進度 (hanzi_practice_progress_v1)
       try {
         const rawHanzi = localStorage.getItem('hanzi_practice_progress_v1');
         if (rawHanzi) {
