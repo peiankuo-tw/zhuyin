@@ -220,8 +220,8 @@
             </div>
 
             <div class="inline-flex rounded-2xl bg-sky-50 border-2 border-sky-100 p-1 gap-1">
-              <button data-mode="trace" type="button" class="mode-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-black transition-all bg-sky-500 text-white shadow-sm">✏️ 完整描線</button>
-              <button data-mode="dashed" type="button" class="mode-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all text-sky-900 hover:bg-sky-100">〰️ 虛線輪廓</button>
+              <button data-mode="guide" type="button" class="mode-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-black transition-all bg-sky-500 text-white shadow-sm">🧭 筆順引導</button>
+              <button data-mode="trace" type="button" class="mode-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all text-sky-900 hover:bg-sky-100">✏️ 自由描線</button>
               <button data-mode="memory" type="button" class="mode-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all text-sky-900 hover:bg-sky-100">🧠 默寫</button>
             </div>
           </div>
@@ -231,16 +231,25 @@
             <canvas id="tracingCanvas" class="w-full h-full block"></canvas>
             <div id="canvasToast"
               class="pointer-events-none opacity-0 transition-opacity duration-300 absolute bottom-3 left-1/2 -translate-x-1/2 bg-sky-950/90 text-white text-xs sm:text-sm font-bold px-4 py-2 rounded-full shadow-lg text-center max-w-[92%]">
-              沿著四線三格慢慢描寫喔！
+              從數字 1 開始，沿著箭頭慢慢描寫喔！
             </div>
           </div>
 
-          <!-- 底字深淺滑桿 -->
-          <div class="mt-3.5 bg-sky-50/90 rounded-2xl p-3 border-2 border-sky-100 flex flex-wrap items-center justify-between gap-3">
-            <span class="text-xs sm:text-sm font-bold text-sky-900">📏 英語四線三格練習紙（紅線為基準底線）</span>
+          <!-- 筆順動畫控制列與底字深淺滑桿 -->
+          <div class="mt-3.5 bg-sky-50/90 rounded-2xl p-3 border-2 border-sky-100 flex flex-wrap items-center justify-between gap-2.5">
+            <div class="flex items-center gap-2 flex-wrap">
+              <button id="playStrokeAnimBtn" type="button"
+                class="btn-3d px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-orange-400 to-amber-400 hover:from-orange-500 hover:to-amber-500 text-white border-b-4 border-orange-600 font-black text-xs sm:text-sm shadow-sm flex items-center gap-1.5">
+                <span id="playStrokeAnimIcon">▶️</span>
+                <span id="playStrokeAnimText">看筆順示範</span>
+              </button>
+              <span id="strokeStepBadge" class="px-2.5 py-1 rounded-full text-xs font-black bg-white text-sky-800 border border-sky-200">
+                第 1 筆
+              </span>
+            </div>
             <div id="opacityControlWrap" class="flex items-center gap-2">
               <label for="opacitySlider" class="text-xs font-bold text-sky-800 whitespace-nowrap">底字深淺</label>
-              <input id="opacitySlider" type="range" min="12" max="60" value="26" class="w-24 sm:w-28 cursor-pointer" />
+              <input id="opacitySlider" type="range" min="12" max="60" value="26" class="w-20 sm:w-28 cursor-pointer" />
             </div>
           </div>
 
@@ -386,6 +395,7 @@
   </div>
 
   <script src="./vocab-db.js?v=2"></script>
+  <script src="./strokes-db.js?v=1"></script>
   <script>
     const STORAGE_KEY = 'english_practice_progress_v1';
 
@@ -408,14 +418,23 @@
       activeCategory: 'all',
       completedSet: new Set(),
       caseMode: 'both',      // 'upper' | 'lower' | 'both'
-      practiceMode: 'trace', // 'trace' | 'dashed' | 'memory'
+      practiceMode: 'guide', // 'guide' | 'trace' | 'memory'
       templateOpacity: 0.26,
       brushColor: BRUSH_COLORS[0],
       brushSizeKey: 'medium',
       rainbowHue: 0,
       freeStrokes: [],
+      guidedStep: 0,
+      guidedCompleted: [],   // { strokeIdx, color, isRainbow, startHue, sizeRatio }
+      isAnimating: false,
+      animStrokeIdx: 0,
+      animProgress: 0,
+      animPauseUntil: 0,
+      animLastTs: 0,
+      pulsePhase: 0,
       isDrawing: false,
       currentPointerStroke: null,
+      activeTab: 'write',
     };
 
     const canvas = document.getElementById('tracingCanvas');
@@ -439,6 +458,10 @@
     const opacitySlider = document.getElementById('opacitySlider');
     const opacityControlWrap = document.getElementById('opacityControlWrap');
     const canvasToast = document.getElementById('canvasToast');
+    const playStrokeAnimBtn = document.getElementById('playStrokeAnimBtn');
+    const playStrokeAnimIcon = document.getElementById('playStrokeAnimIcon');
+    const playStrokeAnimText = document.getElementById('playStrokeAnimText');
+    const strokeStepBadge = document.getElementById('strokeStepBadge');
     const rewardModal = document.getElementById('rewardModal');
     const rewardTitle = document.getElementById('rewardTitle');
     const rewardSubtitle = document.getElementById('rewardSubtitle');
@@ -684,30 +707,340 @@
       return { y1, y2, y3, y4 };
     }
 
-    function drawTemplateText(w, h, lines) {
-      if (state.practiceMode === 'memory') return;
+    /** 四線三格向量筆順輔助函式 */
+    function getCurrentStrokes(w, h) {
       const item = window.EnglishDB.ENGLISH_LETTERS[state.currentIndex];
-      const text =
-        state.caseMode === 'upper' ? item.letter :
-        state.caseMode === 'lower' ? item.lower :
-        `${item.letter} ${item.lower}`;
+      if (!window.EnglishStrokesDB || !item) return [];
+      return window.EnglishStrokesDB.getCanvasStrokes(item.letter, state.caseMode, w, h);
+    }
 
-      const fontSize = state.caseMode === 'both' ? h * 0.56 : h * 0.64;
+    function getPathLength(pts) {
+      let total = 0;
+      for (let i = 1; i < pts.length; i++) {
+        total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+      }
+      return total;
+    }
+
+    function resamplePath(pts, stepPx = 4) {
+      if (!pts || pts.length <= 1) return pts ? [...pts] : [];
+      const out = [pts[0]];
+      let acc = 0;
+      for (let i = 1; i < pts.length; i++) {
+        let p0 = pts[i - 1];
+        const p1 = pts[i];
+        let segLen = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+        if (segLen < 0.001) continue;
+        while (acc + segLen >= stepPx) {
+          const t = (stepPx - acc) / segLen;
+          const nx = p0.x + (p1.x - p0.x) * t;
+          const ny = p0.y + (p1.y - p0.y) * t;
+          const np = { x: nx, y: ny };
+          out.push(np);
+          p0 = np;
+          segLen = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+          acc = 0;
+        }
+        acc += segLen;
+      }
+      const last = pts[pts.length - 1];
+      if (Math.hypot(last.x - out[out.length - 1].x, last.y - out[out.length - 1].y) > 0.5) {
+        out.push(last);
+      }
+      return out;
+    }
+
+    function computeBadgeOffsets(strokes, baseR) {
+      const minDist = baseR * 2.45;
+      const pos = strokes.map((st) => ({ x: st.points[0].x, y: st.points[0].y }));
+
+      // 多輪斥力微調：確保任意兩個起筆數字徽章絕不重疊
+      for (let pass = 0; pass < 4; pass++) {
+        for (let i = 1; i < strokes.length; i++) {
+          for (let j = 0; j < i; j++) {
+            const dx = pos[i].x - pos[j].x;
+            const dy = pos[i].y - pos[j].y;
+            const dist = Math.hypot(dx, dy);
+            if (dist < minDist) {
+              const push = minDist - dist + 1.5;
+              let ux, uy;
+              if (dist > 1) {
+                ux = dx / dist;
+                uy = dy / dist;
+              } else {
+                // 起點幾乎重疊（如 A、B、E、M）：沿著第 i 筆的前進方向推開
+                const st = strokes[i];
+                const p0 = st.points[0];
+                const p1 = st.points[Math.min(4, st.points.length - 1)] || p0;
+                const sdx = p1.x - p0.x;
+                const sdy = p1.y - p0.y;
+                const slen = Math.hypot(sdx, sdy) || 1;
+                ux = sdx / slen;
+                uy = sdy / slen;
+              }
+              pos[i].x += ux * push;
+              pos[i].y += uy * push;
+            }
+          }
+        }
+      }
+
+      return strokes.map((st, i) => ({
+        x: pos[i].x - st.points[0].x,
+        y: pos[i].y - st.points[0].y
+      }));
+    }
+
+    function drawVectorStroke(strokeObj, options = {}) {
+      const {
+        color = '#CBD5E1',
+        lineWidth = 14,
+        dashed = false,
+        dashPattern = [10, 8],
+        progress = 1,
+        isRainbow = false,
+        startHue = 0,
+        glow = false
+      } = options;
+
+      const pts = strokeObj.points;
+      if (!pts || pts.length === 0) return null;
+
+      if (strokeObj.isDot) {
+        const pt = pts[0];
+        ctx.save();
+        if (glow) {
+          ctx.shadowColor = 'rgba(249, 115, 22, 0.45)';
+          ctx.shadowBlur = 10;
+        }
+        ctx.fillStyle = isRainbow ? `hsl(${startHue}, 90%, 55%)` : color;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, lineWidth * 0.62, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        return pt;
+      }
+
+      const sampled = resamplePath(pts, 3.5);
+      const maxIdx = Math.max(1, Math.floor((sampled.length - 1) * Math.min(1, Math.max(0, progress))));
+      const subPts = sampled.slice(0, maxIdx + 1);
+
       ctx.save();
-      ctx.font = `600 ${Math.round(fontSize)}px "Fredoka", "Zen Maru Gothic", sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = lineWidth;
+      if (dashed) ctx.setLineDash(dashPattern);
+      if (glow) {
+        ctx.shadowColor = 'rgba(249, 115, 22, 0.35)';
+        ctx.shadowBlur = 10;
+      }
 
-      if (state.practiceMode === 'trace') {
-        ctx.fillStyle = `rgba(148, 163, 184, ${state.templateOpacity})`;
-        ctx.fillText(text, w / 2, lines.y3);
-      } else if (state.practiceMode === 'dashed') {
-        ctx.strokeStyle = `rgba(100, 116, 139, ${Math.min(state.templateOpacity + 0.25, 0.85)})`;
-        ctx.lineWidth = 3.5;
-        ctx.setLineDash([8, 7]);
-        ctx.strokeText(text, w / 2, lines.y3);
+      if (!isRainbow) {
+        ctx.strokeStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(subPts[0].x, subPts[0].y);
+        for (let i = 1; i < subPts.length - 1; i++) {
+          const xc = (subPts[i].x + subPts[i + 1].x) / 2;
+          const yc = (subPts[i].y + subPts[i + 1].y) / 2;
+          ctx.quadraticCurveTo(subPts[i].x, subPts[i].y, xc, yc);
+        }
+        ctx.lineTo(subPts[subPts.length - 1].x, subPts[subPts.length - 1].y);
+        ctx.stroke();
+      } else {
+        let prev = subPts[0];
+        for (let i = 1; i < subPts.length; i++) {
+          const curr = subPts[i];
+          ctx.strokeStyle = `hsl(${(startHue + i * 3.5) % 360}, 90%, 55%)`;
+          ctx.beginPath();
+          ctx.moveTo(prev.x, prev.y);
+          ctx.lineTo(curr.x, curr.y);
+          ctx.stroke();
+          prev = curr;
+        }
       }
       ctx.restore();
+      return subPts[subPts.length - 1];
+    }
+
+    function drawDirectionArrows(strokeObj, h, color = '#EA580C', isHighlight = false) {
+      if (strokeObj.isDot) return;
+      const sampled = resamplePath(strokeObj.points, 4);
+      if (sampled.length < 5) return;
+      const totalLen = getPathLength(sampled);
+      const fractions = totalLen > h * 0.45 ? [0.35, 0.72] : [0.55];
+      const arrowSize = isHighlight ? Math.max(8, h * 0.032) : Math.max(6, h * 0.023);
+
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2;
+
+      fractions.forEach((frac) => {
+        const idx = Math.min(sampled.length - 2, Math.max(1, Math.floor(sampled.length * frac)));
+        const p1 = sampled[idx - 1];
+        const p2 = sampled[idx + 1];
+        const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+        ctx.save();
+        ctx.translate(sampled[idx].x, sampled[idx].y);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.moveTo(arrowSize, 0);
+        ctx.lineTo(-arrowSize * 0.75, -arrowSize * 0.65);
+        ctx.lineTo(-arrowSize * 0.35, 0);
+        ctx.lineTo(-arrowSize * 0.75, arrowSize * 0.65);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fill();
+        ctx.restore();
+      });
+      ctx.restore();
+    }
+
+    function drawStartNumberBadge(strokeObj, num, h, options = {}) {
+      const {
+        pulse = false,
+        active = false,
+        bgColor = '#F97316',
+        textColor = '#FFFFFF',
+        offset = { x: 0, y: 0 }
+      } = options;
+      const p0 = strokeObj.points[0];
+      const sx = p0.x + offset.x;
+      const sy = p0.y + offset.y;
+      const baseR = active ? Math.max(11, h * 0.044) : Math.max(8, h * 0.031);
+      const r = pulse ? baseR * (1 + Math.sin(state.pulsePhase) * 0.14) : baseR;
+
+      ctx.save();
+      if (pulse) {
+        const haloR = baseR * (1.45 + Math.sin(state.pulsePhase) * 0.32);
+        ctx.fillStyle = 'rgba(249, 115, 22, 0.24)';
+        ctx.beginPath();
+        ctx.arc(sx, sy, haloR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = bgColor;
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = textColor;
+      ctx.font = `900 ${Math.round(r * 1.25)}px "Zen Maru Gothic", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(num), sx, sy + 0.5);
+      ctx.restore();
+    }
+
+    /** 筆順引導判定（友善高容錯，並支援小寫 i / j 輕點圓點） */
+    function evaluateGuidedStroke(userNormPts, targetStroke, w, h) {
+      const userPts = userNormPts.map((p) => ({ x: p.x * w, y: p.y * h }));
+      if (userPts.length === 0) return { passed: false, reason: '再描一次看看喔！' };
+
+      const tol = Math.max(26, Math.min(w, h) * 0.105);
+
+      if (targetStroke.isDot) {
+        const dotPt = targetStroke.points[0];
+        const minDist = Math.min(...userPts.map((p) => Math.hypot(p.x - dotPt.x, p.y - dotPt.y)));
+        if (minDist <= tol * 1.15) return { passed: true, reason: '' };
+        return { passed: false, reason: '點一下上面的小圓點就完成囉！' };
+      }
+
+      const targetSampled = resamplePath(targetStroke.points, 5);
+      const startDist = Math.hypot(userPts[0].x - targetSampled[0].x, userPts[0].y - targetSampled[0].y);
+      if (startDist > tol * 1.45) {
+        return { passed: false, reason: `請從數字 ${state.guidedStep + 1} 圓圈起點開始寫喔！` };
+      }
+
+      let covered = 0;
+      for (const tp of targetSampled) {
+        let minD = Infinity;
+        for (const up of userPts) {
+          const d = Math.hypot(up.x - tp.x, up.y - tp.y);
+          if (d < minD) minD = d;
+        }
+        if (minD <= tol) covered++;
+      }
+      const coverage = covered / targetSampled.length;
+
+      const lastUser = userPts[userPts.length - 1];
+      const lastTarget = targetSampled[targetSampled.length - 1];
+      const endDist = Math.hypot(lastUser.x - lastTarget.x, lastUser.y - lastTarget.y);
+
+      let onTrack = 0;
+      for (const up of userPts) {
+        let minD = Infinity;
+        for (const tp of targetSampled) {
+          const d = Math.hypot(up.x - tp.x, up.y - tp.y);
+          if (d < minD) minD = d;
+        }
+        if (minD <= tol * 1.25) onTrack++;
+      }
+      const onTrackRatio = onTrack / userPts.length;
+
+      if (coverage >= 0.58 && endDist <= tol * 1.45 && onTrackRatio >= 0.58) {
+        return { passed: true, reason: '' };
+      }
+      if (coverage < 0.58 || endDist > tol * 1.45) {
+        return { passed: false, reason: '快完成了！試著沿著箭頭畫到終點喔！' };
+      }
+      return { passed: false, reason: '再慢慢沿著虛線描一次看看！' };
+    }
+
+    function updateStrokeStepBadge() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const strokes = getCurrentStrokes(rect.width || 480, rect.height || 360);
+      const total = strokes.length;
+      if (state.isAnimating) {
+        const idx = Math.min(state.animStrokeIdx + 1, total);
+        strokeStepBadge.textContent = `示範中：第 ${idx} / ${total} 筆`;
+      } else if (state.practiceMode === 'guide') {
+        if (state.guidedStep >= total && total > 0) {
+          strokeStepBadge.textContent = `✨ 全部 ${total} 筆完成！`;
+        } else {
+          strokeStepBadge.textContent = `第 ${state.guidedStep + 1} / ${total} 筆`;
+        }
+      } else {
+        strokeStepBadge.textContent = `共 ${total} 筆`;
+      }
+    }
+
+    function stopStrokeAnimation() {
+      state.isAnimating = false;
+      state.animStrokeIdx = 0;
+      state.animProgress = 0;
+      playStrokeAnimIcon.textContent = '▶️';
+      playStrokeAnimText.textContent = '看筆順示範';
+      updateStrokeStepBadge();
+    }
+
+    function startStrokeAnimation() {
+      state.isAnimating = true;
+      state.animStrokeIdx = 0;
+      state.animProgress = 0;
+      state.animPauseUntil = 0;
+      state.animLastTs = performance.now();
+      playStrokeAnimIcon.textContent = '⏹️';
+      playStrokeAnimText.textContent = '停止示範';
+      updateStrokeStepBadge();
+      ensureRenderLoop();
+    }
+
+    function triggerLetterReward() {
+      const item = window.EnglishDB.ENGLISH_LETTERS[state.currentIndex];
+      state.completedSet.add(item.letter);
+      saveProgress();
+      updateProgressUI();
+      renderLetterGrid();
+      currentStarStatus.classList.remove('hidden');
+      playRewardSound();
+      launchConfetti();
+      rewardTitle.textContent = PRAISES[Math.floor(Math.random() * PRAISES.length)];
+      rewardSubtitle.textContent = `你完成了字母「${item.letter} ${item.lower}」的標準筆順練習，獲得一顆閃亮小星星！`;
+      rewardModal.classList.remove('hidden');
+      rewardModal.classList.add('flex');
     }
 
     function drawUserStroke(stroke, w, h) {
@@ -759,15 +1092,160 @@
       ctx.restore();
     }
 
-    function redrawCanvas() {
+    function redrawCanvas(timestamp) {
       const rect = canvas.parentElement.getBoundingClientRect();
       const w = rect.width;
       const h = rect.height;
       if (!w || !h) return;
-      const lines = drawFourLineGrid(w, h);
-      drawTemplateText(w, h, lines);
+
+      state.pulsePhase = (timestamp || performance.now()) * 0.0055;
+      drawFourLineGrid(w, h);
+
+      const strokes = getCurrentStrokes(w, h);
+      const baseLineWidth = Math.max(11, h * 0.044);
+      const offsets = computeBadgeOffsets(strokes, Math.max(9, h * 0.032));
+
+      // 1. 正在播放「看筆順示範」動畫
+      if (state.isAnimating && strokes.length > 0) {
+        const now = timestamp || performance.now();
+        const dt = Math.min(80, Math.max(0, now - (state.animLastTs || now)));
+        state.animLastTs = now;
+
+        if (now >= state.animPauseUntil) {
+          const curr = strokes[state.animStrokeIdx];
+          const speed = curr && curr.isDot ? 0.004 : 0.00145;
+          state.animProgress += dt * speed;
+          if (state.animProgress >= 1) {
+            state.animProgress = 0;
+            state.animStrokeIdx++;
+            state.animPauseUntil = now + 260;
+            if (state.animStrokeIdx >= strokes.length) {
+              stopStrokeAnimation();
+            } else {
+              updateStrokeStepBadge();
+            }
+          }
+        }
+
+        // 淡色完整底稿
+        strokes.forEach((st) => drawVectorStroke(st, { color: 'rgba(148, 163, 184, 0.22)', lineWidth: baseLineWidth }));
+
+        // 已示範筆畫
+        for (let i = 0; i < Math.min(state.animStrokeIdx, strokes.length); i++) {
+          drawVectorStroke(strokes[i], { color: '#6366F1', lineWidth: baseLineWidth });
+          drawStartNumberBadge(strokes[i], i + 1, h, { active: false, bgColor: '#818CF8', offset: offsets[i] });
+        }
+
+        // 正在示範中的筆畫 + 移動光點
+        if (state.isAnimating && state.animStrokeIdx < strokes.length) {
+          const currSt = strokes[state.animStrokeIdx];
+          drawDirectionArrows(currSt, h, '#C4B5FD', false);
+          const tip = drawVectorStroke(currSt, {
+            color: '#F97316',
+            lineWidth: baseLineWidth * 1.08,
+            progress: Math.max(0.03, state.animProgress),
+            glow: true
+          });
+          drawStartNumberBadge(currSt, state.animStrokeIdx + 1, h, { active: true, bgColor: '#F97316', offset: offsets[state.animStrokeIdx] });
+
+          if (tip) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(251, 146, 60, 0.35)';
+            ctx.beginPath();
+            ctx.arc(tip.x, tip.y, h * 0.052, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#FFF7ED';
+            ctx.strokeStyle = '#EA580C';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(tip.x, tip.y, h * 0.024, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+        return;
+      }
+
+      // 2. 🧭 筆順引導模式（循序一筆一筆描寫）
+      if (state.practiceMode === 'guide') {
+        strokes.forEach((st) => {
+          drawVectorStroke(st, {
+            color: `rgba(148, 163, 184, ${state.templateOpacity})`,
+            lineWidth: baseLineWidth
+          });
+        });
+
+        // 已完成的筆畫（平滑上色）
+        state.guidedCompleted.forEach((rec) => {
+          const st = strokes[rec.strokeIdx];
+          if (!st) return;
+          drawVectorStroke(st, {
+            color: rec.color,
+            isRainbow: rec.isRainbow,
+            startHue: rec.startHue,
+            lineWidth: rec.sizeRatio * Math.min(w, h)
+          });
+        });
+
+        // 當前待描寫筆畫：高亮橘色虛線 + 方向箭頭 + 呼吸起筆數字
+        if (state.guidedStep < strokes.length) {
+          const activeSt = strokes[state.guidedStep];
+          drawVectorStroke(activeSt, {
+            color: '#F97316',
+            lineWidth: baseLineWidth * 0.9,
+            dashed: true,
+            dashPattern: [10, 8],
+            glow: true
+          });
+          drawDirectionArrows(activeSt, h, '#EA580C', true);
+          drawStartNumberBadge(activeSt, state.guidedStep + 1, h, {
+            pulse: true,
+            active: true,
+            bgColor: '#F97316',
+            offset: offsets[state.guidedStep]
+          });
+        }
+
+        if (state.currentPointerStroke) drawUserStroke(state.currentPointerStroke, w, h);
+        return;
+      }
+
+      // 3. ✏️ 自由描線模式（顯示標準向量底字 + 筆順編號與方向箭頭）
+      if (state.practiceMode === 'trace') {
+        strokes.forEach((st) => {
+          drawVectorStroke(st, {
+            color: `rgba(148, 163, 184, ${state.templateOpacity})`,
+            lineWidth: baseLineWidth
+          });
+          drawDirectionArrows(st, h, 'rgba(14, 165, 233, 0.72)', false);
+        });
+        strokes.forEach((st, idx) => {
+          drawStartNumberBadge(st, idx + 1, h, {
+            active: false,
+            bgColor: '#0EA5E9',
+            offset: offsets[idx]
+          });
+        });
+      }
+
+      // 自由描線 & 默寫模式的使用者筆跡
       state.freeStrokes.forEach((st) => drawUserStroke(st, w, h));
       if (state.currentPointerStroke) drawUserStroke(state.currentPointerStroke, w, h);
+    }
+
+    let rafLoopId = null;
+    function ensureRenderLoop() {
+      if (rafLoopId !== null) return;
+      function loop(ts) {
+        if (state.activeTab !== 'write' || (!state.isAnimating && state.practiceMode !== 'guide')) {
+          rafLoopId = null;
+          return;
+        }
+        redrawCanvas(ts);
+        rafLoopId = requestAnimationFrame(loop);
+      }
+      rafLoopId = requestAnimationFrame(loop);
     }
 
     /** 觸控/滑鼠書寫 */
@@ -781,6 +1259,7 @@
 
     canvas.addEventListener('pointerdown', (e) => {
       e.preventDefault();
+      if (state.isAnimating) stopStrokeAnimation();
       canvas.setPointerCapture(e.pointerId);
       state.isDrawing = true;
       state.rainbowHue = (state.rainbowHue + 40) % 360;
@@ -809,10 +1288,37 @@
     function finishStroke() {
       if (!state.isDrawing) return;
       state.isDrawing = false;
-      if (state.currentPointerStroke && state.currentPointerStroke.points.length > 0) {
-        state.freeStrokes.push(state.currentPointerStroke);
-      }
+      const finished = state.currentPointerStroke;
       state.currentPointerStroke = null;
+
+      if (finished && finished.points.length > 0) {
+        if (state.practiceMode === 'guide') {
+          const rect = canvas.parentElement.getBoundingClientRect();
+          const strokes = getCurrentStrokes(rect.width, rect.height);
+          if (state.guidedStep < strokes.length) {
+            const res = evaluateGuidedStroke(finished.points, strokes[state.guidedStep], rect.width, rect.height);
+            if (res.passed) {
+              state.guidedCompleted.push({
+                strokeIdx: state.guidedStep,
+                color: finished.color,
+                isRainbow: finished.isRainbow,
+                startHue: finished.startHue,
+                sizeRatio: finished.sizeRatio,
+              });
+              playStrokeDing(state.guidedStep);
+              state.guidedStep++;
+              updateStrokeStepBadge();
+              if (state.guidedStep >= strokes.length) {
+                setTimeout(() => triggerLetterReward(), 320);
+              }
+            } else {
+              showToast(res.reason);
+            }
+          }
+        } else {
+          state.freeStrokes.push(finished);
+        }
+      }
       redrawCanvas();
     }
     canvas.addEventListener('pointerup', finishStroke);
@@ -948,7 +1454,10 @@
       state.currentIndex = (index + list.length) % list.length;
       state.currentWordIdx = 0;
       state.freeStrokes = [];
+      state.guidedStep = 0;
+      state.guidedCompleted = [];
       state.currentPointerStroke = null;
+      stopStrokeAnimation();
 
       const item = list[state.currentIndex];
       currentLetterHeader.textContent = `${item.letter} ${item.lower}`;
@@ -961,25 +1470,42 @@
       currentStarStatus.classList.toggle('hidden', !state.completedSet.has(item.letter));
       renderWordCard();
       renderLetterGrid();
+      updateStrokeStepBadge();
       redrawCanvas();
+      ensureRenderLoop();
     }
 
     // 按鈕事件
     document.getElementById('prevBtn').addEventListener('click', () => { playSoftPop(); selectLetter(state.currentIndex - 1); });
     document.getElementById('nextBtn').addEventListener('click', () => { playSoftPop(); selectLetter(state.currentIndex + 1); });
 
+    playStrokeAnimBtn.addEventListener('click', () => {
+      playSoftPop();
+      if (state.isAnimating) {
+        stopStrokeAnimation();
+        redrawCanvas();
+      } else {
+        startStrokeAnimation();
+      }
+    });
+
     document.querySelectorAll('.case-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         playSoftPop();
         state.caseMode = btn.dataset.case;
         state.freeStrokes = [];
+        state.guidedStep = 0;
+        state.guidedCompleted = [];
+        stopStrokeAnimation();
         document.querySelectorAll('.case-btn').forEach((b) => {
           const active = b.dataset.case === state.caseMode;
           b.className = active
             ? 'case-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-black transition-all bg-indigo-500 text-white shadow-sm'
             : 'case-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all text-indigo-900 hover:bg-indigo-100';
         });
+        updateStrokeStepBadge();
         redrawCanvas();
+        ensureRenderLoop();
       });
     });
 
@@ -988,6 +1514,9 @@
         playSoftPop();
         state.practiceMode = btn.dataset.mode;
         state.freeStrokes = [];
+        state.guidedStep = 0;
+        state.guidedCompleted = [];
+        stopStrokeAnimation();
         document.querySelectorAll('.mode-btn').forEach((b) => {
           const active = b.dataset.mode === state.practiceMode;
           b.className = active
@@ -995,7 +1524,9 @@
             : 'mode-btn px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all text-sky-900 hover:bg-sky-100';
         });
         opacityControlWrap.style.visibility = state.practiceMode === 'memory' ? 'hidden' : 'visible';
+        updateStrokeStepBadge();
         redrawCanvas();
+        ensureRenderLoop();
       });
     });
 
@@ -1005,7 +1536,17 @@
     });
 
     document.getElementById('undoBtn').addEventListener('click', () => {
-      if (state.freeStrokes.length > 0) {
+      if (state.practiceMode === 'guide') {
+        if (state.guidedCompleted.length > 0) {
+          playSoftPop();
+          state.guidedCompleted.pop();
+          state.guidedStep = Math.max(0, state.guidedStep - 1);
+          updateStrokeStepBadge();
+          redrawCanvas();
+        } else {
+          showToast('目前還沒有可以復原的筆畫喔！');
+        }
+      } else if (state.freeStrokes.length > 0) {
         playSoftPop();
         state.freeStrokes.pop();
         redrawCanvas();
@@ -1016,27 +1557,24 @@
 
     document.getElementById('clearBtn').addEventListener('click', () => {
       playSoftPop();
+      stopStrokeAnimation();
       state.freeStrokes = [];
+      state.guidedStep = 0;
+      state.guidedCompleted = [];
+      updateStrokeStepBadge();
       redrawCanvas();
+      ensureRenderLoop();
     });
 
     document.getElementById('doneBtn').addEventListener('click', () => {
-      if (state.freeStrokes.length === 0) {
+      const hasDrawn = state.practiceMode === 'guide'
+        ? state.guidedCompleted.length > 0
+        : state.freeStrokes.length > 0;
+      if (!hasDrawn) {
         showToast('先在四線三格裡寫寫看再按完成喔！✏️');
         return;
       }
-      const item = window.EnglishDB.ENGLISH_LETTERS[state.currentIndex];
-      state.completedSet.add(item.letter);
-      saveProgress();
-      updateProgressUI();
-      renderLetterGrid();
-      currentStarStatus.classList.remove('hidden');
-      playRewardSound();
-      launchConfetti();
-      rewardTitle.textContent = PRAISES[Math.floor(Math.random() * PRAISES.length)];
-      rewardSubtitle.textContent = `你完成了字母「${item.letter} ${item.lower}」的練習，獲得一顆閃亮小星星！`;
-      rewardModal.classList.remove('hidden');
-      rewardModal.classList.add('flex');
+      triggerLetterReward();
     });
 
     document.getElementById('speakLetterBtn').addEventListener('click', () => {
@@ -1097,7 +1635,11 @@
       rewardModal.classList.add('hidden');
       rewardModal.classList.remove('flex');
       state.freeStrokes = [];
+      state.guidedStep = 0;
+      state.guidedCompleted = [];
+      updateStrokeStepBadge();
       redrawCanvas();
+      ensureRenderLoop();
     });
     document.getElementById('rewardNextBtn').addEventListener('click', () => {
       playSoftPop();
@@ -1134,8 +1676,10 @@
     const tabGamesBtn = document.getElementById('tabGamesBtn');
 
     function switchMainTab(tab) {
+      state.activeTab = tab;
       const isGames = tab === 'games';
       if (isGames) {
+        stopStrokeAnimation();
         writingSection.classList.add('hidden');
         gamesSection.classList.remove('hidden');
         tabGamesBtn.className = 'btn-3d py-2.5 sm:py-3 px-4 rounded-2xl font-black text-base sm:text-lg flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-fuchsia-500 to-violet-500 text-white border-b-4 border-violet-700 shadow-sm';
@@ -1147,7 +1691,10 @@
         writingSection.classList.remove('hidden');
         tabWriteBtn.className = 'btn-3d py-2.5 sm:py-3 px-4 rounded-2xl font-black text-base sm:text-lg flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-sky-400 to-indigo-500 text-white border-b-4 border-indigo-700 shadow-sm';
         tabGamesBtn.className = 'btn-3d py-2.5 sm:py-3 px-4 rounded-2xl font-black text-base sm:text-lg flex items-center justify-center gap-2 transition-all bg-sky-50 hover:bg-sky-100 text-sky-900 border-b-4 border-sky-200';
-        requestAnimationFrame(resizeCanvas);
+        requestAnimationFrame(() => {
+          resizeCanvas();
+          ensureRenderLoop();
+        });
       }
     }
 
